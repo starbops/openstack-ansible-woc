@@ -1,0 +1,53 @@
+---
+- name: Hostname aliases
+  become: yes
+  lineinfile:
+    dest: /etc/hosts
+    line: "{{ ansible_all_ipv4_addresses[0] }} controller network compute1 block1"
+    state: present
+- name: Basic dependencies
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+    update_cache: yes
+  with_items:
+    - ntp
+    - ubuntu-cloud-keyring
+    - rabbitmq-server
+- name: Add OpenStack Kilo source
+  become: yes
+  lineinfile:
+    dest: /etc/apt/sources.list.d/cloudarchive-kilo.list
+    line: 'deb http://ubuntu-cloud.archive.canonical.com/ubuntu trusty-updates/kilo main'
+    state: present
+    create: yes
+- name: Dist upgrade
+  become: yes
+  apt:
+    upgrade: dist
+    update_cache: yes
+- name: MySQL OpenStack-related settings
+  become: yes
+  template:
+    src: mysqld_openstack.cnf.j2
+    dest: /etc/mysql/conf.d/mysqld_openstack.cnf
+- name: Restart MySQL server
+  become: yes
+  service:
+    name: mysql
+    state: restarted
+- name: Add RabbitMQ openstack user
+  become: yes
+  rabbitmq_user:
+    user: openstack
+    password: "{{ rabbit_openstack_password }}"
+    configure_priv: .*
+    read_priv: .*
+    write_priv: .*
+    state: present
+- name: Place my.cnf under {{ ansible_user_dir }}
+  template:
+    src: my.cnf.j2
+    dest: "{{ ansible_user_dir }}/.my.cnf"
+    mode: 0600

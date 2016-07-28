@@ -1,0 +1,11 @@
+---
+- name: The great OpenStack
+  hosts: all
+  vars:
+    - mysql_root_password: password
+    - rabbit_openstack_password: password
+    - keystone_password: password
+  roles:
+    - role: geerlingguy.mysql
+      become: yes
+    - role: openstack

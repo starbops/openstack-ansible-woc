@@ -1,0 +1,101 @@
+---
+- name: Create keystone database
+  mysql_db:
+    name: keystone
+    state: present
+- name: Grant proper access to the keystone database from localhost
+  mysql_user:
+    name: keystone
+    password: "{{ keystone_password }}"
+    host: localhost
+    priv: keystone.*:ALL
+    state: present
+- name: Grant proper access to the keystone database from any hosts
+  mysql_user:
+    name: keystone
+    password: "{{ keystone_password }}"
+    host: '%'
+    priv: keystone.*:ALL
+    state: present
+- name: Generate admin token for later use
+  command: openssl rand -hex 10
+  register: admin_tmp_token
+- name: Disable Keystone service from starting automatically after installation
+  become: yes
+  lineinfile:
+    line: 'manual'
+    dest: /etc/init/keystone.override
+    state: present
+    create: yes
+- name: Install Keystone packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - keystone
+    - python-openstackclient
+    - apache2
+    - libapache2-mod-wsgi
+    - memcached
+    - python-memcache
+
+
+- name: Prepare keystone.conf
+  become: yes
+  ini_file:
+    dest: /etc/keystone/keystone.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: admin_token, value: "{{ admin_tmp_token }}" }
+    - { section: database, option: connection, value: "mysql://keystone:{{ keystone_password }}@controller/keystone" }
+    - { section: memcache, option: servers, value: 'localhost:11211' }
+    - { section: token, option: provider, value: keystone.token.providers.uuid.Provider }
+    - { section: token, option: driver, value: keystone.token.persistence.backends.memcache.Token }
+    - { section: revoke, option: driver, value: keystone.contrib.revoke.backends.sql.Revoke }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+
+
+  #- name: Set temporary admin token in keystone.conf
+  #  become: yes
+  #  ini_file:
+  #    dest: /etc/keystone/keystone.conf
+  #    section: DEFAULT
+  #    option: admin_token
+  #    value: "{{ admin_tmp_token }}"
+  #    state: present
+  #- name: Set database connection in keystone.conf
+  #  become: yes
+  #  ini_file:
+  #    dest: /etc/keystone/keystone.conf
+  #    section: database
+  #    option: connection
+  #    value: mysql://keystone:{{ keystone_password }}@controller/keystone
+  #    state: present
+  #- name: Set Memcache service in keystone.conf
+  #  become: yes
+  #  ini_file:
+  #    dest: /etc/keystone/keystone.conf
+  #    section: memcache
+  #    option: servers
+  #    value: localhost:11211
+  #    state: present
+  #- name: Configure UUID token provider and Memcached driver
+  #  become: yes
+  #  ini_file:
+  #    dest: /etc/keystone/keystone.conf
+  #    section: token
+  #    option: provider
+  #    value: keystone.token.providers.uuid.Provider
+  #    state: present
+  #- name: Configure UUID token provider and Memcached driver
+  #  become: yes
+  #  ini_file:
+  #    dest: /etc/keystone/keystone.conf
+  #    section: token
+  #    option: provider
+  #    value: keystone.token.providers.uuid.Provider
+  #    state: present
