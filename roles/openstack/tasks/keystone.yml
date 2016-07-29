@@ -48,10 +48,64 @@
     value: "{{ item.value }}"
     state: present
   with_items:
-    - { section: DEFAULT, option: admin_token, value: "{{ admin_tmp_token }}" }
+    - { section: DEFAULT, option: admin_token, value: "{{ admin_tmp_token.stdout }}" }
     - { section: database, option: connection, value: "mysql://keystone:{{ keystone_password }}@controller/keystone" }
     - { section: memcache, option: servers, value: 'localhost:11211' }
     - { section: token, option: provider, value: keystone.token.providers.uuid.Provider }
     - { section: token, option: driver, value: keystone.token.persistence.backends.memcache.Token }
     - { section: revoke, option: driver, value: keystone.contrib.revoke.backends.sql.Revoke }
     - { section: DEFAULT, option: verbose, value: 'True' }
+- name: Populate the Identity service database
+  become: yes
+  become_user: keystone
+  command: keystone-manage db_sync
+- name: Prepare apache2.conf
+  become: yes
+  lineinfile:
+    dest: /etc/apache2/apache2.conf
+    line: ServerName controller
+    state: present
+- name: Prepare wsgi-keystone.conf
+  become: yes
+  template:
+    src: wsgi-keystone.conf.j2
+    dest: /etc/apache2/sites-available/wsgi-keystone.conf
+- name: Enable Identity service virtual hosts
+  become: yes
+  file:
+    src: /etc/apache2/sites-available/wsgi-keystone.conf
+    dest: /etc/apache2/sites-enabled/wsgi-keystone.conf
+    state: link
+- name: Create directory structure
+  become: yes
+  file:
+    path: /var/www/cgi-bin/keystone
+    state: directory
+- name:
+  become: yes
+  get_url:
+    url: http://git.openstack.org/cgit/openstack/keystone/plain/httpd/keystone.py?h=kilo-eol
+    dest: "{{ item }}"
+  with_items:
+    - /var/www/cgi-bin/keystone/main
+    - /var/www/cgi-bin/keystone/admin
+
+- name: Set ownership of the directory
+  become: yes
+  file:
+    path: /var/www/cgi-bin/keystone
+    owner: keystone
+    group: keystone
+    mode: 0755
+    recurse: yes
+    state: directory
+- name: Restart the Apache HTTP server
+  become: yes
+  service:
+    name: apache2
+    state: restarted
+- name: Remove the SQLite database file
+  become: yes
+  file:
+    path: /var/lib/keystone/keystone.db
+    state: absent
