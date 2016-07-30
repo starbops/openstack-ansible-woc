@@ -5,6 +5,8 @@
     - mysql_root_password: password
     - rabbit_openstack_password: password
     - keystone_password: password
+    - admin_password: password
+    - demo_password: password
   roles:
     - role: geerlingguy.mysql
       become: yes
