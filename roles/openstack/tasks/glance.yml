@@ -156,6 +156,7 @@
   become: yes
   become_user: glance
   command: glance-manage db_sync
+  ignore_errors: yes
 - name: Restart the Image services
   become: yes
   service:
