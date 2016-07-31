@@ -1,0 +1,171 @@
+---
+# Configure prerequisites
+- name: Create glance database
+  mysql_db:
+    name: glance
+    state: present
+- name: Grant proper access to the glance database from localhost
+  mysql_user:
+    name: glance
+    password: "{{ glance_password }}"
+    host: localhost
+    priv: glance.*:ALL
+    state: present
+- name: Grant proper access to the glance database from any hosts
+  mysql_user:
+    name: glance
+    password: "{{ glance_password }}"
+    host: '%'
+    priv: glance.*:ALL
+    state: present
+- name: List all OpenStack users
+  environment:
+    OS_TOKEN: "{{ admin_tmp_token.stdout }}"
+    OS_URL: 'http://controller:35357/v2.0'
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user list
+  register: user_list
+- name: Create the glance user
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user create --password {{ glance_password }} glance
+  when: user_list.stdout.find('glance') == -1
+- name: Add the admin role to the glance user and service project
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role add --project service --user glance admin
+  ignore_errors: yes
+- name: List all OpenStack services
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service list
+  register: service_list
+- name: Create the glance service entity
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service create --name glance --description "OpenStack Image service" image
+  when: service_list.stdout.find('glance') == -1
+- name: List all OpenStack endpoints
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint list
+  register: endpoint_list
+- name: Create the Image service API endpoint
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+        endpoint create \
+        --publicurl http://controller:9292 \
+        --internalurl http://controller:9292 \
+        --adminurl http://controller:9292 \
+        --region RegionOne \
+        image
+  when: endpoint_list.stdout.find('glance') == -1
+
+# Install and configure the Image service components
+- name: Install the packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - glance
+    - python-glanceclient
+- name: Remove keystone_authtoken section in /etc/glance/glance-api.conf and /etc/glance/glance-registry.conf
+  become: yes
+  ini_file:
+    dest: "{{ item }}"
+    section: keystone_authtoken
+    state: absent
+  with_items:
+    - /etc/glance/glance-api.conf
+    - /etc/glance/glance-registry.conf
+- name: Prepare glance-api.conf
+  become: yes
+  ini_file:
+    dest: /etc/glance/glance-api.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: database, option: connection, value: "mysql://glance:{{ glance_password }}@controller/glance" }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000' }
+    - { section: keystone_authtoken, option: auth_url, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: auth_plugin, value: password }
+    - { section: keystone_authtoken, option: project_domain_id, value: default }
+    - { section: keystone_authtoken, option: user_domain_id, value: default }
+    - { section: keystone_authtoken, option: project_name, value: service }
+    - { section: keystone_authtoken, option: username, value: glance }
+    - { section: keystone_authtoken, option: password, value: "{{ glance_password }}" }
+    - { section: paste_deploy, option: flavor, value: keystone }
+    - { section: glance_store, option: default_store, value: file }
+    - { section: glance_store, option: filesystem_store_datadir, value: /var/lib/glance/images/ }
+    - { section: DEFAULT, option: notification_driver, value: noop }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+- name: Prepare glance-registry.conf
+  become: yes
+  ini_file:
+    dest: /etc/glance/glance-registry.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: database, option: connection, value: "mysql://glance:{{ glance_password }}@controller/glance" }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000' }
+    - { section: keystone_authtoken, option: auth_url, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: auth_plugin, value: password }
+    - { section: keystone_authtoken, option: project_domain_id, value: default }
+    - { section: keystone_authtoken, option: user_domain_id, value: default }
+    - { section: keystone_authtoken, option: project_name, value: service }
+    - { section: keystone_authtoken, option: username, value: glance }
+    - { section: keystone_authtoken, option: password, value: "{{ glance_password }}" }
+    - { section: paste_deploy, option: flavor, value: keystone }
+    - { section: DEFAULT, option: notification_driver, value: noop }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+- name: Populate the Image service database
+  become: yes
+  become_user: glance
+  command: glance-manage db_sync
+- name: Restart the Image services
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - glance-api
+    - glance-registry
+- name: Remove the SQLite database file
+  become: yes
+  file:
+    path: /var/lib/glance/glance.sqlite
+    state: absent
