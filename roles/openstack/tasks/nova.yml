@@ -79,10 +79,10 @@
       --os-project-domain-id default --os-user-domain-id default \
       --os-project-name admin \
       --os-username admin --os-password {{ admin_password }} \
-        endpoint create \
-        --publicurl http://controller:9292 \
-        --internalurl http://controller:9292 \
-        --adminurl http://controller:9292 \
+      endpoint create \
+        --publicurl http://controller:8774/v2/%\(tenant_id\)s \
+        --internalurl http://controller:8774/v2/%\(tenant_id\)s \
+        --adminurl http://controller:8774/v2/%\(tenant_id\)s \
         --region RegionOne \
         compute
   when: endpoint_list.stdout.find('nova') == -1
