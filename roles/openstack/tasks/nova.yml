@@ -185,7 +185,7 @@
     - { section: DEFAULT, option: rpc_backend, value: rabbit }
     - { section: oslo_messaging_rabbit, option: rabbit_host, value: controller }
     - { section: oslo_messaging_rabbit, option: rabbit_userid, value: openstack }
-    - { section: oslo_messaging_rabbit, option: rabbit_host, value: "{{ rabbit_openstack_password }}" }
+    - { section: oslo_messaging_rabbit, option: rabbit_password, value: "{{ rabbit_openstack_password }}" }
     - { section: DEFAULT, option: auth_strategy, value: keystone }
     - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000' }
     - { section: keystone_authtoken, option: auth_url, value: 'http://controller:35357' }
