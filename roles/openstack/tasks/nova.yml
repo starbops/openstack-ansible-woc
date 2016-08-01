@@ -130,9 +130,9 @@
     - { section: keystone_authtoken, option: project_name, value: service }
     - { section: keystone_authtoken, option: username, value: nova }
     - { section: keystone_authtoken, option: password, value: "{{ nova_password }}" }
-    - { section: DEFAULT, option: my_ip, value: "{{ ansible_all_ipv4_address[0] }}" }
-    - { section: DEFAULT, option: vncserver_listen, value: "{{ ansible_all_ipv4_address[0] }}" }
-    - { section: DEFAULT, option: vncserver_proxyclient_address, value: "{{ ansible_all_ipv4_address[0] }}" }
+    - { section: DEFAULT, option: my_ip, value: "{{ ansible_all_ipv4_addresses[0] }}" }
+    - { section: DEFAULT, option: vncserver_listen, value: "{{ ansible_all_ipv4_addresses[0] }}" }
+    - { section: DEFAULT, option: vncserver_proxyclient_address, value: "{{ ansible_all_ipv4_addresses[0] }}" }
     - { section: glance, option: host, value: controller }
     - { section: oslo_concurrency, option: lock_path, value: /var/lib/nova/tmp }
     - { section: DEFAULT, option: verbose, value: 'True' }
