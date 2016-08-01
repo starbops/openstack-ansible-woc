@@ -2,3 +2,4 @@
 - include: prerequisites.yml
 - include: keystone.yml
 - include: glance.yml
+- include: nova.yml

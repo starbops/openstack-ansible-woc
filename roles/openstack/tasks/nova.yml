@@ -1,0 +1,88 @@
+---
+# Configure prerequisites
+- name: Create nova database
+  mysql_db:
+    name: nova
+    state: present
+- name: Grant proper access to the nova database from localhost
+  mysql_user:
+    name: nova
+    password: "{{ nova_password }}"
+    host: localhost
+    priv: nova.*:ALL
+    state: present
+- name: Grant proper access to the nova database from any hosts
+  mysql_user:
+    name: nova
+    password: "{{ nova_password }}"
+    host: '%'
+    priv: nova.*:ALL
+    state: present
+- name: List all OpenStack users
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user list
+  register: user_list
+- name: Create the nova user
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user create --password {{ nova_password }} nova
+  when: user_list.stdout.find('nova') == -1
+- name: Add the admin role to the nova user and service project
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role add --project service --user nova admin
+  ignore_errors: yes
+- name: List all OpenStack services
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service list
+  register: service_list
+- name: Create the nova service entity
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service create --name nova --description "OpenStack Compute service" compute
+  when: service_list.stdout.find('nova') == -1
+- name: List all OpenStack endpoints
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint list
+  register: endpoint_list
+- name: Create the Compute service API endpoint
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+        endpoint create \
+        --publicurl http://controller:9292 \
+        --internalurl http://controller:9292 \
+        --adminurl http://controller:9292 \
+        --region RegionOne \
+        compute
+  when: endpoint_list.stdout.find('nova') == -1
