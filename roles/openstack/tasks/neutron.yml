@@ -86,3 +86,60 @@
         --region RegionOne \
         network
   when: endpoint_list.stdout.find('neutron') == -1
+
+# Install the Networking components
+- name: Install the Networking components
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - neutron-server
+    - neutron-plugin-ml2
+    - python-neutronclient
+
+# Configure the Networking server component
+- name: Remove keystone_authtoken section in /etc/neutron/neutron.conf
+  become: yes
+  ini_file:
+    dest: /etc/neutron/neutron.conf
+    section: keystone_authtoken
+    state: absent
+- name: Prepare neutron.conf
+  become: yes
+  ini_file:
+    dest: /etc/neutron/neutron.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: database, option: connection, value: "mysql://neutron:{{ neutron_password }}@controller/neutron" }
+    - { section: DEFAULT, option: rpc_backend, value: rabbit }
+    - { section: oslo_messaging_rabbit, option: rabbit_host, value: controller }
+    - { section: oslo_messaging_rabbit, option: rabbit_userid, value: openstack }
+    - { section: oslo_messaging_rabbit, option: rabbit_password, value: "{{ rabbit_openstack_password }}" }
+    - { section: DEFAULT, option: auth_strategy, value: keystone }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000' }
+    - { section: keystone_authtoken, option: auth_url, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: auth_plugin, value: password }
+    - { section: keystone_authtoken, option: project_domain_id, value: default }
+    - { section: keystone_authtoken, option: user_domain_id, value: default }
+    - { section: keystone_authtoken, option: project_name, value: service }
+    - { section: keystone_authtoken, option: username, value: neutron }
+    - { section: keystone_authtoken, option: password, value: "{{ neutron_password }}" }
+    - { section: DEFAULT, option: core_plugin, value: ml2 }
+    - { section: DEFAULT, option: service_plugins, value: router }
+    - { section: DEFAULT, option: allow_overlapping_ips, value: 'True' }
+    - { section: DEFAULT, option: notify_nova_on_port_status_changes, value: 'True' }
+    - { section: DEFAULT, option: notify_nova_on_port_data_changes, value: 'True' }
+    - { section: DEFAULT, option: nova_url, value: 'http://controller:8774/v2' }
+    - { section: nova, option: auth_url, value: 'http://controller:35357' }
+    - { section: nova, option: auth_plugin, value: password }
+    - { section: nova, option: project_domain_id, value: default }
+    - { section: nova, option: user_domain_id, value: default }
+    - { section: nova, option: region_name, value: RegionOne }
+    - { section: nova, option: project_name, value: service }
+    - { section: nova, option: username, value: nova }
+    - { section: nova, option: password, value: "{{ nova_password }}" }
+    - { section: DEFAULT, option: verbose, value: 'True' }
