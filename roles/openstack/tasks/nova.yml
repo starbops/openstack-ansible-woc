@@ -157,3 +157,59 @@
   file:
     path: /var/lib/nova/nova.sqlite
     state: absent
+
+# Install and configure a compute node
+- name: Install the packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - nova-compute
+    - sysfsutils
+- name: Remove keystone_authtoken section in /etc/nova/nova.conf
+  become: yes
+  ini_file:
+    dest: /etc/nova/nova.conf
+    section: keystone_authtoken
+    state: absent
+- name: Prepare nova.conf
+  become: yes
+  ini_file:
+    dest: /etc/nova/nova.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: rpc_backend, value: rabbit }
+    - { section: oslo_messaging_rabbit, option: rabbit_host, value: controller }
+    - { section: oslo_messaging_rabbit, option: rabbit_userid, value: openstack }
+    - { section: oslo_messaging_rabbit, option: rabbit_host, value: "{{ rabbit_openstack_password }}" }
+    - { section: DEFAULT, option: auth_strategy, value: keystone }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000' }
+    - { section: keystone_authtoken, option: auth_url, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: auth_plugin, value: password }
+    - { section: keystone_authtoken, option: project_domain_id, value: default }
+    - { section: keystone_authtoken, option: user_domain_id, value: default }
+    - { section: keystone_authtoken, option: project_name, value: service }
+    - { section: keystone_authtoken, option: username, value: nova }
+    - { section: keystone_authtoken, option: password, value: "{{ nova_password }}" }
+    - { section: DEFAULT, option: my_ip, value: "{{ ansible_all_ipv4_addresses[0] }}" }
+    - { section: DEFAULT, option: vnc_enabled, value: 'True' }
+    - { section: DEFAULT, option: vncserver_listen, value: 0.0.0.0 }
+    - { section: DEFAULT, option: vncserver_proxyclient_address, value: "{{ ansible_all_ipv4_addresses[0] }}" }
+    - { section: DEFAULT, option: novncproxy_base_url, value: "http://{{ ansible_all_ipv4_addresses[0] }}:6080/vnc_auto.html" }
+    - { section: glance, option: host, value: controller }
+    - { section: oslo_concurrency, option: lock_path, value: /var/lib/nova/tmp }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+- name: Restart the Compute service
+  become: yes
+  service:
+    name: nova-compute
+    state: restarted
+- name: Remove the SQLite database file
+  become: yes
+  file:
+    path: /var/lib/nova/nova.sqlite
+    state: absent
