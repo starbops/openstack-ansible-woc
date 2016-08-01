@@ -143,3 +143,64 @@
     - { section: nova, option: username, value: nova }
     - { section: nova, option: password, value: "{{ nova_password }}" }
     - { section: DEFAULT, option: verbose, value: 'True' }
+
+# Configure the Modular Layer 2 (ML2) plug-in
+- name: Prepare ml2_conf.ini
+  become: yes
+  ini_file:
+    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: ml2, option: type_drivers, value: local,flat,vlan,gre,vxlan }
+    - { section: ml2, option: tenant_network_types, value: local }
+    - { section: ml2, option: mechanism_drivers , value: openvswitch }
+    - { section: securitygroup, option: enable_security_group, value: 'True' }
+    - { section: securitygroup, option: enable_ipset, value: 'True' }
+    - { section: securitygroup, option: firewall_driver, value: neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver }
+
+# Configure Compute to use Networking
+- name: Prepare nova.conf
+  become: yes
+  ini_file:
+    dest: /etc/nova/nova.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: network_api_class, value: nova.network.neutronv2.api.API }
+    - { section: DEFAULT, option: security_group_api, value: neutron }
+    - { section: DEFAULT, option: linuxnet_interface_driver,  value: nova.network.linux_net.LinuxOVSInterfaceDriver }
+    - { section: DEFAULT, option: firewall_driver, value: nova.virt.firewall.NoopFirewallDriver }
+    - { section: neutron, option: url, value: 'http://controller:9696' }
+    - { section: neutron, option: auth_strategy, value: keystone }
+    - { section: neutron, option: admin_auth_url, value: 'http://controller:35357/v2.0' }
+    - { section: neutron, option: admin_tenant_name, value: service }
+    - { section: neutron, option: admin_username, value: neutron }
+    - { section: neutron, option: admin_password, value: "{{ neutron_password }}" }
+- name: Populate the Networking service database
+  become: yes
+  become_user: neutron
+  command: >
+    neutron-db-manage \
+      --config-file /etc/neutron/neutron.conf \
+      --config-file /etc/neutron/plugins/ml2/ml2_conf.ini \
+      upgrade head
+- name: Restart the Compute service
+  become: yes
+  service:
+    name: nova-api
+    state: restarted
+- name: Restart the Networking service
+  become: yes
+  service:
+    name: neutron-server
+    state: restarted
+- name: Remove the SQLite database file
+  become: yes
+  file:
+    path: /var/lib/neutron/neutron.sqlite
+    state: absent
