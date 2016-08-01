@@ -204,3 +204,184 @@
   file:
     path: /var/lib/neutron/neutron.sqlite
     state: absent
+
+####################################
+# Install and configure network node
+- name: Configure kernel networking parameters
+  become: yes
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  with_items:
+    - { name: net.ipv4.ip_forward, value: 1 }
+    - { name: net.ipv4.conf.all.rp_filter, value: 0 }
+    - { name: net.ipv4.conf.default.rp_filter, value: 0 }
+
+# Install the Networking components
+- name: Install the Networking components
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - neutron-plugin-ml2
+    - neutron-plugin-openvswitch-agent
+    - neutron-l3-agent
+    - neutron-dhcp-agent
+    - neutron-metadata-agent
+
+# Configure the Networking common components
+- name: Remove keystone_authtoken section in /etc/neutron/neutron.conf
+  become: yes
+  ini_file:
+    dest: /etc/neutron/neutron.conf
+    section: keystone_authtoken
+    state: absent
+- name: Prepare neutron.conf
+  become: yes
+  ini_file:
+    dest: /etc/neutron/neutron.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: rpc_backend, value: rabbit }
+    - { section: oslo_messaging_rabbit, option: rabbit_host, value: controller }
+    - { section: oslo_messaging_rabbit, option: rabbit_userid, value: openstack }
+    - { section: oslo_messaging_rabbit, option: rabbit_password, value: "{{ rabbit_openstack_password }}" }
+    - { section: DEFAULT, option: auth_strategy, value: keystone }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000' }
+    - { section: keystone_authtoken, option: auth_url, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: auth_plugin, value: password }
+    - { section: keystone_authtoken, option: project_domain_id, value: default }
+    - { section: keystone_authtoken, option: user_domain_id, value: default }
+    - { section: keystone_authtoken, option: project_name, value: service }
+    - { section: keystone_authtoken, option: username, value: neutron }
+    - { section: keystone_authtoken, option: password, value: "{{ neutron_password }}" }
+    - { section: DEFAULT, option: core_plugin, value: ml2 }
+    - { section: DEFAULT, option: service_plugins, value: router }
+    - { section: DEFAULT, option: allow_overlapping_ips, value: 'True' }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+
+# Configure the Modular Layer 2 (ML2) plug-in
+- name: Prepare ml2_conf.ini
+  become: yes
+  ini_file:
+    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: ml2, option: type_drivers, value: local,flat,vlan,gre,vxlan }
+    - { section: ml2, option: tenant_network_types, value: local }
+    - { section: ml2, option: mechanism_drivers , value: openvswitch }
+    - { section: ml2_type_flat, option: flat_networks, value: external }
+    - { section: securitygroup, option: enable_security_group, value: 'True' }
+    - { section: securitygroup, option: enable_ipset, value: 'True' }
+    - { section: securitygroup, option: firewall_driver, value: neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver }
+    - { section: ovs, option: bridge_mappings, value: 'external:br-ex' }
+
+# Configure the Layer-3 (L3) agent
+- name: Prepare l3_agent.ini
+  become: yes
+  ini_file:
+    dest: /etc/neutron/l3_agent.ini
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: interface_driver, value: neutron.agent.linux.interface.OVSInterfaceDriver }
+    - { section: DEFAULT, option: external_network_bridge, value: '' }
+    - { section: DEFAULT, option: router_delete_namespaces, value: 'True' }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+
+# Configure the DHCP agent
+- name: Prepare dhcp_agent.ini
+  become: yes
+  ini_file:
+    dest: /etc/neutron/dhcp_agent.ini
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: interface_driver, value: neutron.agent.linux.interface.OVSInterfaceDriver }
+    - { section: DEFAULT, option: dhcp_driver, value: neutron.agent.linux.dhcp.Dnsmasq }
+    - { section: DEFAULT, option: dhcp_delete_namespaces, value: 'True' }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+
+# Configure the metadata agent
+- name: Prepare metadata_agent.ini
+  become: yes
+  ini_file:
+    dest: /etc/neutron/metadata_agent.ini
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: auth_uri, value: 'http://controller:5000' }
+    - { section: DEFAULT, option: auth_url, value: 'http://controller:35357' }
+    - { section: DEFAULT, option: auth_region, value: RegionOne }
+    - { section: DEFAULT, option: auth_plugin, value: password }
+    - { section: DEFAULT, option: project_domain_id, value: default }
+    - { section: DEFAULT, option: user_domain_id, value: default }
+    - { section: DEFAULT, option: project_name, value: service }
+    - { section: DEFAULT, option: username, value: neutron }
+    - { section: DEFAULT, option: password, value: "{{ neutron_password }}" }
+    - { section: DEFAULT, option: nova_metadata_ip, value: controller }
+    - { section: DEFAULT, option: metadata_proxy_shared_secret, value: "{{ metadata_proxy_shared_secret }}" }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+
+# Jump to controller node
+- name: Modify nova.conf on controller node
+  become: yes
+  ini_file:
+    dest: /etc/nova/nova.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: neutron, option: service_metadata_proxy, value: 'True' }
+    - { section: neutron, option: metadata_proxy_shared_secret, value: "{{ metadata_proxy_shared_secret }}" }
+- name: Restat the Compute API service
+  become: yes
+  service:
+    name: nova-api
+    state: restarted
+
+# Configure the Open vSwitch (OVS) service
+- name: Restart the OVS service
+  become: yes
+  service:
+    name: openvswitch-switch
+    state: restarted
+- name: Add the external bridge
+  become: yes
+  openvswitch_bridge:
+    bridge: br-ex
+    state: present
+- name: Add a port to the external bridge that connects to the physical external network interface
+  become: yes
+  openvswitch_port:
+    bridge: br-ex
+    port: "{{ external_interface }}"
+    state: present
+
+# Finalize the installation
+- name: Restart the Networking services
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - neutron-plugin-openvswitch-agent
+    - neutron-l3-agent
+    - neutron-dhcp-agent
+    - neutron-metadata-agent
