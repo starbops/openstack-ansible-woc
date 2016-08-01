@@ -1,0 +1,88 @@
+---
+# Install and configure controller node
+- name: Create neutron database
+  mysql_db:
+    name: neutron
+    state: present
+- name: Grant proper access to the neutron database from localhost
+  mysql_user:
+    name: neutron
+    password: "{{ neutron_password }}"
+    host: localhost
+    priv: neutron.*:ALL
+    state: present
+- name: Grant proper access to the neutron database from any hosts
+  mysql_user:
+    name: neutron
+    password: "{{ neutron_password }}"
+    host: '%'
+    priv: neutron.*:ALL
+    state: present
+- name: List all OpenStack users
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user list
+  register: user_list
+- name: Create the neutron user
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user create --password {{ neutron_password }} neutron
+  when: user_list.stdout.find('neutron') == -1
+- name: Add the admin role to the neutron user and service project
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role add --project service --user neutron admin
+  ignore_errors: yes
+- name: List all OpenStack services
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service list
+  register: service_list
+- name: Create the neutron service entity
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service create --name neutron --description "OpenStack Networking service" network
+  when: service_list.stdout.find('neutron') == -1
+- name: List all OpenStack endpoints
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint list
+  register: endpoint_list
+- name: Create the Networking service API endpoint
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint create \
+        --publicurl http://controller:9696 \
+        --adminurl http://controller:9696 \
+        --internalurl http://controller:9696 \
+        --region RegionOne \
+        network
+  when: endpoint_list.stdout.find('neutron') == -1

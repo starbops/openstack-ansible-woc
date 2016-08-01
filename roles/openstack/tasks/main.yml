@@ -3,3 +3,4 @@
 - include: keystone.yml
 - include: glance.yml
 - include: nova.yml
+- include: neutron.yml

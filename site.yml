@@ -9,6 +9,7 @@
     - keystone_password: password
     - glance_password: password
     - nova_password: password
+    - neutron_password: password
   roles:
     - role: geerlingguy.mysql
       become: yes
