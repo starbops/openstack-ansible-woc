@@ -154,7 +154,7 @@
     value: "{{ item.value }}"
     state: present
   with_items:
-    - { section: ml2, option: type_drivers, value: local,flat,vlan,gre,vxlan }
+    - { section: ml2, option: type_drivers, value: 'local,flat,vlan,gre,vxlan' }
     - { section: ml2, option: tenant_network_types, value: local }
     - { section: ml2, option: mechanism_drivers , value: openvswitch }
     - { section: securitygroup, option: enable_security_group, value: 'True' }
@@ -276,7 +276,7 @@
     value: "{{ item.value }}"
     state: present
   with_items:
-    - { section: ml2, option: type_drivers, value: local,flat,vlan,gre,vxlan }
+    - { section: ml2, option: type_drivers, value: 'local,flat,vlan,gre,vxlan' }
     - { section: ml2, option: tenant_network_types, value: local }
     - { section: ml2, option: mechanism_drivers , value: openvswitch }
     - { section: ml2_type_flat, option: flat_networks, value: external }
