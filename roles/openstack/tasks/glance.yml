@@ -19,9 +19,6 @@
     priv: glance.*:ALL
     state: present
 - name: List all OpenStack users
-  environment:
-    OS_TOKEN: "{{ admin_tmp_token.stdout }}"
-    OS_URL: 'http://controller:35357/v2.0'
   command: >
     openstack \
       --os-auth-url http://controller:35357/v3 \
