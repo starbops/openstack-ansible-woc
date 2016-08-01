@@ -14,6 +14,11 @@ Vagrant.configure("2") do |config|
     vb.memory = "2048"
   end
 
+  config.vm.provider "libvirt" do |domain|
+    domain.cpus = "8"
+    domain.memory = "4096"
+  end
+
   config.vm.provision "ansible" do |ansible|
     ansible.verbose = "v"
     ansible.playbook = "site.yml"
