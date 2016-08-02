@@ -43,6 +43,7 @@
             --gateway 192.168.33.1
       ignore_errors: yes
     - name: List all the tenant networks
+      command: >
         neutron \
           --os-auth-url http://controller:35357/v3 \
           --os-project-domain-id default --os-user-domain-id default \
@@ -72,6 +73,7 @@
           --gateway 172.16.1.1
       ignore_errors: yes
     - name: List all routers
+      command: >
         neutron \
           --os-auth-url http://controller:35357/v3 \
           --os-project-domain-id default --os-user-domain-id default \
