@@ -1,0 +1,38 @@
+---
+# Install the dashboard components
+- name: Install the packages
+  become: yes
+  apt:
+    name: openstack-dashboard
+    state: present
+
+# Configure the dashboard
+- name: Configure the dashboard to use OpenStack services on the controller node
+  become: yes
+  lineinfile:
+    dest: /etc/openstack-dashboard/local_settings.py
+    line: "{{ item }}"
+    state: present
+  with_items:
+    - 'OPENSTACK_HOST = "controller"'
+    - "ALLOWED_HOSTS = ['*', ]"
+    - 'OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"'
+
+- name: Configure the memcached session storage service
+  become: yes
+  blockinfile:
+    dest: /etc/openstack-dashboard/local_settings.py
+    block: |
+      CACHES = {
+        'default': {
+          'BACKEND': 'django.core.cache.backends.memcached.MemcachedCache',
+          'LOCATION': '127.0.0.1:11211',
+        }
+      }
+
+# Finalize installation
+- name: Reload the web server configuration
+  become: yes
+  service:
+    name: apache2
+    state: restarted
