@@ -385,3 +385,113 @@
     - neutron-l3-agent
     - neutron-dhcp-agent
     - neutron-metadata-agent
+
+####################################
+# Install and configure compute node
+- name: Configure kernel networking parameters
+  become: yes
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: yes
+  with_items:
+    - { name: net.ipv4.conf.all.rp_filter, value: 0 }
+    - { name: net.ipv4.conf.default.rp_filter, value: 0 }
+    - { name: net.bridge.bridge-nf-call-iptables, value: 1 }
+    - { name: net.bridge.bridge-nf-call-ip6tables, value: 1 }
+- name: Install the Networking components
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - neutron-plugin-ml2
+    - neutron-plugin-openvswitch-agent
+
+# Configure the Networking common components
+- name: Remove keystone_authtoken section in /etc/neutron/neutron.conf
+  become: yes
+  ini_file:
+    dest: /etc/neutron/neutron.conf
+    section: keystone_authtoken
+    state: absent
+- name: Prepare neutron.conf
+  become: yes
+  ini_file:
+    dest: /etc/neutron/neutron.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: rpc_backend, value: rabbit }
+    - { section: oslo_messaging_rabbit, option: rabbit_host, value: controller }
+    - { section: oslo_messaging_rabbit, option: rabbit_userid, value: openstack }
+    - { section: oslo_messaging_rabbit, option: rabbit_password, value: "{{ rabbit_openstack_password }}" }
+    - { section: DEFAULT, option: auth_strategy, value: keystone }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000' }
+    - { section: keystone_authtoken, option: auth_url, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: auth_plugin, value: password }
+    - { section: keystone_authtoken, option: project_domain_id, value: default }
+    - { section: keystone_authtoken, option: user_domain_id, value: default }
+    - { section: keystone_authtoken, option: project_name, value: service }
+    - { section: keystone_authtoken, option: username, value: neutron }
+    - { section: keystone_authtoken, option: password, value: "{{ neutron_password }}" }
+    - { section: DEFAULT, option: core_plugin, value: ml2 }
+    - { section: DEFAULT, option: service_plugins, value: router }
+    - { section: DEFAULT, option: allow_overlapping_ips, value: 'True' }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+
+# Configure the Modular Layer 2 (ML2) plug-in
+- name: Prepare ml2_conf.ini
+  become: yes
+  ini_file:
+    dest: /etc/neutron/plugins/ml2/ml2_conf.ini
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: ml2, option: type_drivers, value: 'local,flat,vlan,gre,vxlan' }
+    - { section: ml2, option: tenant_network_types, value: local }
+    - { section: ml2, option: mechanism_drivers , value: openvswitch }
+    - { section: securitygroup, option: enable_security_group, value: 'True' }
+    - { section: securitygroup, option: enable_ipset, value: 'True' }
+    - { section: securitygroup, option: firewall_driver, value: neutron.agent.linux.iptables_firewall.OVSHybridIptablesFirewallDriver }
+
+# Configure the Open vSwitch (OVS) service
+- name: Restart the OVS service
+  become: yes
+  service:
+    name: openvswitch-switch
+    state: restarted
+
+# Configure Compute to use Networking
+- name: Prepare nova.conf
+  become: yes
+  ini_file:
+    dest: /etc/nova/nova.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: network_api_class, value: nova.network.neutronv2.api.API }
+    - { section: DEFAULT, option: security_group_api, value: neutron }
+    - { section: DEFAULT, option: linuxnet_interface_driver,  value: nova.network.linux_net.LinuxOVSInterfaceDriver }
+    - { section: DEFAULT, option: firewall_driver, value: nova.virt.firewall.NoopFirewallDriver }
+    - { section: neutron, option: url, value: 'http://controller:9696' }
+    - { section: neutron, option: auth_strategy, value: keystone }
+    - { section: neutron, option: admin_auth_url, value: 'http://controller:35357/v2.0' }
+    - { section: neutron, option: admin_tenant_name, value: service }
+    - { section: neutron, option: admin_username, value: neutron }
+    - { section: neutron, option: admin_password, value: "{{ neutron_password }}" }
+- name:
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - nova-compute
+    - neutron-plugin-openvswitch-agent
