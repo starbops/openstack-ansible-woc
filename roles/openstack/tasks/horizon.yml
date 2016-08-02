@@ -17,7 +17,6 @@
     - 'OPENSTACK_HOST = "controller"'
     - "ALLOWED_HOSTS = ['*', ]"
     - 'OPENSTACK_KEYSTONE_DEFAULT_ROLE = "user"'
-
 - name: Configure the memcached session storage service
   become: yes
   blockinfile:
