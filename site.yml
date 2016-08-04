@@ -2,16 +2,27 @@
 - name: The great OpenStack
   hosts: all
   vars:
-    - mysql_root_password: password
-    - rabbit_openstack_password: password
-    - admin_password: password
-    - demo_password: password
-    - keystone_password: password
-    - glance_password: password
-    - nova_password: password
-    - neutron_password: password
-    - metadata_proxy_shared_secret: secret
-    - external_interface: eth1
+    all_in_one: True
+    nodes:
+      controller:
+        management_interface: "{{ ansible_default_ipv4.interface }}"
+        management_ip_address: "{{ ansible_default_ipv4.address }}"
+      network:
+        management_interface: "{{ ansible_default_ipv4.interface }}"
+        management_ip_address: "{{ ansible_default_ipv4.address }}"
+        external_interface: eth1
+      compute:
+        management_interface: "{{ ansible_default_ipv4.interface }}"
+        management_ip_address: "{{ ansible_default_ipv4.address }}"
+    networking:
+      management:
+        network: "{{ '{}/{}'.format(ansible_default_ipv4.network, ansible_default_ipv4.netmask) | ipaddr('net') }}"
+      external:
+        network: '192.168.33.0/24'
+        allocation_pool:
+          start: '192.168.33.241'
+          start: '192.168.33.250'
+        gateway: '192.168.33.1'
   roles:
     - role: geerlingguy.mysql
       become: yes
@@ -36,11 +47,11 @@
           --os-project-domain-id default --os-user-domain-id default \
           --os-project-name admin \
           --os-username admin --os-password {{ admin_password }} \
-          subnet-create ext-net 192.168.33.0/24 \
+          subnet-create ext-net {{ networking.external.network }} \
             --name ext-subnet \
-            --allocation-pool start=192.168.33.241,end=192.168.33.250 \
+            --allocation-pool start={{ networking.external.allocation_pool.start }},end={{ networking.external.allocation_pool.end }} \
             --disable-dhcp \
-            --gateway 192.168.33.1
+            --gateway {{ networking.external.gateway }}
       ignore_errors: yes
     - name: List all the tenant networks
       command: >

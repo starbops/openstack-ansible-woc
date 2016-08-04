@@ -1,0 +1,50 @@
+---
+# OpenStack role default variables
+
+# Deployment flavor
+all_in_one: False
+
+# User credentials
+admin_password: password
+demo_password: password
+
+# Common services credentials
+mysql_root_password: password
+rabbit_openstack_password: password
+
+# OpenStack services credentials
+keystone_password: password
+glance_password: password
+nova_password: password
+neutron_password: password
+metadata_proxy_shared_secret: secret
+
+# Service nodes configuration
+nodes:
+  controller:
+    management_interface: eth0
+    management_ip_address: '10.0.0.11'
+  network:
+    management_interface: eth0
+    management_ip_address: '10.0.0.21'
+    tunnel_interface: eth1
+    tunnel_ip_address: '10.0.1.21'
+    external_interface: eth2
+  compute:
+    management_interface: eth0
+    management_ip_address: '10.0.1.31'
+    tunnel_interface: eth1
+    tunnel_ip_address: '10.0.1.31'
+
+# Network-related configuration
+networking:
+  management:
+    network: '10.0.0.0/24'
+  tunnel:
+    network: '10.0.1.0/24'
+  external:
+    network: '203.0.113.0/24'
+    allocation_pool:
+      start: '203.0.113.101'
+      end: '203.0.113.200'
+    gateway: '203.0.113.1'
