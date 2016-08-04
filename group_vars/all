@@ -19,5 +19,5 @@ networking:
     network: '192.168.33.0/24'
     allocation_pool:
       start: '192.168.33.241'
-      start: '192.168.33.250'
+      end: '192.168.33.250'
     gateway: '192.168.33.1'
