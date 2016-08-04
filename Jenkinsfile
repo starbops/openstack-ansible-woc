@@ -21,12 +21,13 @@ node('internal') {
     } catch (err) {
         echo "Caught: ${err}"
         currentBuild.result = 'FAILURE'
-        slackSend color: color_code, message: "Build passed!\nAccess dashboard => http://controller/horizon\nAccess console => http://essos.zespre.net:6080/vnc.html?host=essos.zespre.net&port=6080"
+        color_code = '#439FE0'
+        slackSend color: color_code, message: "Build failed!\nAccess dashboard => http://controller/horizon\nAccess console => http://essos.zespre.net:6080/vnc.html?host=essos.zespre.net&port=6080"
         input "Build failed!\nAccess dashboard => http://controller/horizon\nAccess console => http://essos.zespre.net:6080/vnc.html?host=essos.zespre.net&port=6080"
     } finally {
         stage 'cleanup'
         sh 'vagrant destroy -f'
-        color_code = ${currentBuild.result} == 'FAILURE'? '#EA0000' : color_code
+        color_code = ${currentBuild.result} == 'FAILURE'? '#EA0000' : '#439FE0'
         slackSend color: color_code, message: "Build Ended: ${env.JOB_NAME}\nResult: ${currentBuild.result}\n${env.BUILD_URL}"
     }
 }
