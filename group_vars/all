@@ -1,5 +1,6 @@
 ---
 all_in_one: True
+mysql_root_password: password
 nodes:
   controller:
     management_interface: "{{ ansible_default_ipv4.interface }}"
