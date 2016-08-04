@@ -371,7 +371,7 @@
   become: yes
   openvswitch_port:
     bridge: br-ex
-    port: "{{ external_interface }}"
+    port: "{{ nodes.network.external_interface }}"
     state: present
 
 # Finalize the installation
