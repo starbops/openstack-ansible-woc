@@ -10,12 +10,14 @@ node('internal') {
     sh 'ansible-galaxy install -r requirements.yml -p roles'
 
     try {
-        stage 'build'
-        sh 'vagrant up --provider libvirt'
+        gitlabCommitStatus {
+            stage 'build'
+            sh 'vagrant up --provider libvirt'
 
-        stage 'qa'
-        slackSend color: color_code, message: "Build passed!\nAccess dashboard => http://controller/horizon\nAccess console => http://essos.zespre.net:6080/vnc.html?host=essos.zespre.net&port=6080"
-        input "Build passed. Check it out!"
+            stage 'qa'
+            slackSend color: color_code, message: "Build passed!\nAccess dashboard => http://controller/horizon\nAccess console => http://essos.zespre.net:6080/vnc.html?host=essos.zespre.net&port=6080"
+            input "Build passed. Check it out!"
+        }
     } catch (err) {
         echo "Caught: ${err}"
         currentBuild.result = 'FAILURE'
