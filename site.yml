@@ -26,6 +26,7 @@
   roles:
     - role: geerlingguy.mysql
       become: yes
+      mysql_root_password: password
     - role: openstack
   tasks:
     - name: Create the external network
