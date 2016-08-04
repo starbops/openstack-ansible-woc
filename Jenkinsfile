@@ -4,7 +4,7 @@ node('internal') {
     slackSend color: color_code, message: "Build Started: ${env.JOB_NAME}\n${env.BUILD_URL}"
 
     stage 'checkout'
-    checkout changelog: true, poll: true, scm: [$class: 'GitSCM', branches: [[name: "origin/${env.gitlabSourceBranch}"]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: 'origin', mergeStrategy: 'default', mergeTarget: "${env.gitlabTargetBranch}"]]], submoduleCfg: [], userRemoteConfigs: [[name: 'origin', url: 'https://gitlab.zespre.net/starbops/openstack-ansible-noc.git']]]
+    checkout changelog: true, poll: true, scm: [$class: 'GitSCM', branches: [[name: "origin/${env.gitlabSourceBranch}"]], doGenerateSubmoduleConfigurations: false, extensions: [[$class: 'PreBuildMerge', options: [fastForwardMode: 'FF', mergeRemote: 'origin', mergeStrategy: 'default', mergeTarget: "${env.gitlabTargetBranch}"]]], submoduleCfg: [], userRemoteConfigs: [[name: 'origin', url: 'https://gitlab.zespre.net/starbops/openstack-ansible-woc.git']]]
 
     stage 'configure'
     sh 'ansible-galaxy install -r requirements.yml -p roles'
