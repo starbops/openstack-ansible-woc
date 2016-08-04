@@ -4,4 +4,5 @@
 - include: glance.yml
 - include: nova.yml
 - include: neutron.yml
+- include: init_net.yml
 - include: horizon.yml
