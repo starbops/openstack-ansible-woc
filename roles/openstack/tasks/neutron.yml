@@ -367,7 +367,7 @@
   openvswitch_bridge:
     bridge: br-ex
     state: present
-- name: Add a port to the external bridge that connects to the physical external network interface
+- name: Add the interface to the external bridge that connects to the physical external network
   become: yes
   openvswitch_port:
     bridge: br-ex
