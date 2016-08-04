@@ -1,28 +1,6 @@
 ---
 - name: The great OpenStack
   hosts: all
-  vars:
-    all_in_one: True
-    nodes:
-      controller:
-        management_interface: "{{ ansible_default_ipv4.interface }}"
-        management_ip_address: "{{ ansible_default_ipv4.address }}"
-      network:
-        management_interface: "{{ ansible_default_ipv4.interface }}"
-        management_ip_address: "{{ ansible_default_ipv4.address }}"
-        external_interface: eth1
-      compute:
-        management_interface: "{{ ansible_default_ipv4.interface }}"
-        management_ip_address: "{{ ansible_default_ipv4.address }}"
-    networking:
-      management:
-        network: "{{ '{}/{}'.format(ansible_default_ipv4.network, ansible_default_ipv4.netmask) | ipaddr('net') }}"
-      external:
-        network: '192.168.33.0/24'
-        allocation_pool:
-          start: '192.168.33.241'
-          start: '192.168.33.250'
-        gateway: '192.168.33.1'
   roles:
     - role: geerlingguy.mysql
       become: yes
