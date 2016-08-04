@@ -130,9 +130,9 @@
     - { section: keystone_authtoken, option: project_name, value: service }
     - { section: keystone_authtoken, option: username, value: nova }
     - { section: keystone_authtoken, option: password, value: "{{ nova_password }}" }
-    - { section: DEFAULT, option: my_ip, value: "{{ ansible_all_ipv4_addresses[0] }}" }
-    - { section: DEFAULT, option: vncserver_listen, value: "{{ ansible_all_ipv4_addresses[0] }}" }
-    - { section: DEFAULT, option: vncserver_proxyclient_address, value: "{{ ansible_all_ipv4_addresses[0] }}" }
+    - { section: DEFAULT, option: my_ip, value: "{{ ansible_default_ipv4['address'] }}" }
+    - { section: DEFAULT, option: vncserver_listen, value: "{{ ansible_default_ipv4['address'] }}" }
+    - { section: DEFAULT, option: vncserver_proxyclient_address, value: "{{ ansible_default_ipv4['address'] }}" }
     - { section: glance, option: host, value: controller }
     - { section: oslo_concurrency, option: lock_path, value: /var/lib/nova/tmp }
     - { section: DEFAULT, option: verbose, value: 'True' }
@@ -195,11 +195,11 @@
     - { section: keystone_authtoken, option: project_name, value: service }
     - { section: keystone_authtoken, option: username, value: nova }
     - { section: keystone_authtoken, option: password, value: "{{ nova_password }}" }
-    - { section: DEFAULT, option: my_ip, value: "{{ ansible_all_ipv4_addresses[0] }}" }
+    - { section: DEFAULT, option: my_ip, value: "{{ ansible_default_ipv4['address'] }}" }
     - { section: DEFAULT, option: vnc_enabled, value: 'True' }
     - { section: DEFAULT, option: vncserver_listen, value: 0.0.0.0 }
-    - { section: DEFAULT, option: vncserver_proxyclient_address, value: "{{ ansible_all_ipv4_addresses[0] }}" }
-    - { section: DEFAULT, option: novncproxy_base_url, value: "http://{{ ansible_all_ipv4_addresses[0] }}:6080/vnc_auto.html" }
+    - { section: DEFAULT, option: vncserver_proxyclient_address, value: "{{ ansible_default_ipv4['address'] }}" }
+    - { section: DEFAULT, option: novncproxy_base_url, value: "http://{{ ansible_default_ipv4['address'] }}:6080/vnc_auto.html" }
     - { section: glance, option: host, value: controller }
     - { section: oslo_concurrency, option: lock_path, value: /var/lib/nova/tmp }
     - { section: DEFAULT, option: verbose, value: 'True' }
