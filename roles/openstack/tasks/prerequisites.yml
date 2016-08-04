@@ -3,7 +3,7 @@
   become: yes
   lineinfile:
     dest: /etc/hosts
-    line: "{{ ansible_default_ipv4['address'] }} controller network compute1 block1"
+    line: "{{ ansible_default_ipv4['address'] }} controller network compute1"
     state: present
 - name: Basic dependencies
   become: yes
