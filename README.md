@@ -1,8 +1,25 @@
-openstack-ansible-noc
+openstack-ansible-woc
 =====================
 
 
 Yet another OpenStack Ansible deployment project but without container!
+
+
+Supported OpenStack Versions
+----------------------------
+
+* Kilo
+
+
+Deployment Flavor
+-----------------
+
+* All-in-One
+* *Multi-node* (we're working on it!)
+
+
+Dependencies
+------------
 
 Python 3rd party package dependencies:
 
@@ -21,10 +38,13 @@ $ ansible-galaxy install -r requirements.yml -p roles
 ~~~
 
 
-Usage
------
+Installation
+------------
 
-Currently support two providers:
+Firstly, configure variables in `group_vars/all` to suit your need. All the
+variables are introduced briefly in the last section.
+
+Currently the project supports two providers:
 
 * VirtualBox
 * Libvirt (QEMU/KVM)
@@ -38,5 +58,9 @@ To clean up the environment, i.e. remove the VM:
 ~~~ sh
 $ vagrant destroy -f
 ~~~
+
+
+Variables
+---------
 
 
