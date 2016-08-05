@@ -1,3 +1,6 @@
 *.swp
 .vagrant/
 site.retry
+!roles/
+roles/*
+!roles/openstack/
