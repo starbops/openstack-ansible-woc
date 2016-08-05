@@ -41,8 +41,7 @@ $ ansible-galaxy install -r requirements.yml -p roles
 Installation
 ------------
 
-Firstly, configure variables in `group_vars/all` to suit your need. All the
-variables are introduced briefly in the last section.
+Firstly, configure variables in `group_vars/all` to suit your need. All the variables are introduced briefly in the last section. Another important place that you must take a look at, it `Vagrantfile`. You might want to change the hostname of the VM. Just in case it won't collide with other existing VMs' hostnmae. And the VM image (box) specified in the config file should be imported before you start up the VM. The last thing to check is the private network setting. If the network segment is changed, corresponding values in `group_vars/all` must be changed, too.
 
 Currently the project supports two providers:
 
