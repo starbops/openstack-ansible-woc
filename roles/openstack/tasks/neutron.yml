@@ -487,7 +487,7 @@
     - { section: neutron, option: admin_tenant_name, value: service }
     - { section: neutron, option: admin_username, value: neutron }
     - { section: neutron, option: admin_password, value: "{{ neutron_password }}" }
-- name: Restart Compute service and Open vSwitch agent
+- name: Restart the Compute service and the Open vSwitch agent
   become: yes
   service:
     name: "{{ item }}"
