@@ -21,3 +21,5 @@ networking:
       start: '192.168.33.241'
       end: '192.168.33.250'
     gateway: '192.168.33.1'
+  storage:
+    network: "{{ '{}/{}'.format(ansible_default_ipv4.network, ansible_default_ipv4.netmask) | ipaddr('net') }}"
