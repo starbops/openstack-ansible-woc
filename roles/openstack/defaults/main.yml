@@ -32,7 +32,7 @@ nodes:
     external_interface: eth2
   compute:
     management_interface: eth0
-    management_ip_address: '10.0.1.31'
+    management_ip_address: '10.0.0.31'
     tunnel_interface: eth1
     tunnel_ip_address: '10.0.1.31'
 
