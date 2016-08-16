@@ -17,6 +17,7 @@ Vagrant.configure("2") do |config|
   config.vm.provider "libvirt" do |domain|
     domain.cpus = "8"
     domain.memory = "8192"
+    domain.storage :file, size: "20G"
   end
 
   config.vm.provision "ansible" do |ansible|
