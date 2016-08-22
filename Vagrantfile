@@ -16,7 +16,7 @@ Vagrant.configure("2") do |config|
     vb.cpus = "2"
     vb.memory = "2048"
     unless File.exist?(storage_disk_path)
-      vb.customize ["createhd", "--filename", file_to_disk, "--size", storage_disk_size * 1024]
+      vb.customize ["createhd", "--filename", storage_disk_path, "--size", storage_disk_size * 1024]
     end
     vb.customize ["storageattach", :id, "--storagectl", "SATAController", "--port", 1, "--device", 0, "--type", "hdd", "--medium", storage_disk_path]
   end
