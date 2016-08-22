@@ -171,3 +171,86 @@
   file:
     path: /var/lib/cinder/cinder.sqlite
     state: absent
+
+# Install and configure a storage node
+- name: Install QEMU support and LVM packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - qemu
+    - lvm2
+- name: Create filesystem on second disk
+  become: yes
+  filesystem:
+    fstype: ext4
+    dev: /dev/sdb1
+- name: Create the LVM physical volume
+  become: yes
+  lvg:
+    vg: cinder-volumes
+    pvs: /dev/sdb1
+    state: present
+- name: Add a filter that accepts the /dev/sdb device and rejects all other devices
+  become: yes
+  lineinfile:
+    line: 'filter = [ "a/sdb/", "r/.*/"]'
+    dest: /etc/lvm/lvm.conf
+
+# Install and configure Block Storage volume components
+- name: Install the packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - cinder-volume
+    - python-mysqldb
+- name: Remove keystone_authtoken section in /etc/cinder/cinder.conf
+  become: yes
+  ini_file:
+    dest: /etc/cinder/cinder.conf
+    section: keystone_authtoken
+    state: absent
+- name: Prepare cinder.conf
+  become: yes
+  ini_file:
+    dest: /etc/cinder/cinder.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: database, option: connection, value: "mysql://cinder:{{ cinder_password }}@controller/cinder" }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000' }
+    - { section: keystone_authtoken, option: auth_url, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: auth_plugin, value: password }
+    - { section: keystone_authtoken, option: project_domain_id, value: default }
+    - { section: keystone_authtoken, option: user_domain_id, value: default }
+    - { section: keystone_authtoken, option: project_name, value: service }
+    - { section: keystone_authtoken, option: username, value: cinder }
+    - { section: keystone_authtoken, option: password, value: "{{ cinder_password }}" }
+    - { section: DEFAULT, option: my_ip, value: "{{ nodes.block.management_ip_address }}" }
+    - { section: lvm, option: volume_driver, value: cinder.volume.drivers.lvm.LVMVolumeDriver }
+    - { section: lvm, option: volume-group, value: cinder-volumes }
+    - { section: lvm, option: iscsi_protocol, value: iscsi }
+    - { section: lvm, option: iscsi_helper, value: tgtadm }
+    - { section: DEFAULT, option: enabled_backends, value: lvm }
+    - { section: DEFAULT, option: glance_host, value: controller }
+    - { section: oslo_concurrency, option: lock_path, value: /var/lock/cinder }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+# Finalize installation
+- name: Restart the Block Storage volume service including its dependencies
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - tgt
+    - cinder-volume
+- name: Remove the SQLite database file
+  become: yes
+  file:
+    path: /var/lib/cinder/cinder.sqlite
+    state: absent

@@ -12,6 +12,9 @@ nodes:
   compute:
     management_interface: "{{ ansible_default_ipv4.interface }}"
     management_ip_address: "{{ ansible_default_ipv4.address }}"
+  block:
+    management_interface: "{{ ansible_default_ipv4.interface }}"
+    management_ip_address: "{{ ansible_default_ipv4.address }}"
 networking:
   management:
     network: "{{ '{}/{}'.format(ansible_default_ipv4.network, ansible_default_ipv4.netmask) | ipaddr('net') }}"
