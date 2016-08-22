@@ -240,6 +240,7 @@
     - { section: DEFAULT, option: glance_host, value: controller }
     - { section: oslo_concurrency, option: lock_path, value: /var/lock/cinder }
     - { section: DEFAULT, option: verbose, value: 'True' }
+
 # Finalize installation
 - name: Restart the Block Storage volume service including its dependencies
   become: yes
@@ -254,3 +255,12 @@
   file:
     path: /var/lib/cinder/cinder.sqlite
     state: absent
+
+# Verify operation
+- name: Configure the Block Storage service client to use API version 2.0
+  lineinfile:
+    line: 'export OS_VOLUME_API_VERSION=2'
+    dest: "{{ item }}"
+  with_items:
+    - "{{ ansible_user_dir }}/admin-openrc.sh"
+    - "{{ ansible_user_dir }}/demo-openrc.sh"
