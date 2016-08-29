@@ -62,6 +62,11 @@ $ vagrant destroy -f
 Variables
 ---------
 
-* nodes.block.storage_device: Second disk of block storage node. Default to `sdb`.
+* `geerlingguy.mysql` role:
+  * `mysql_root_password`: Password of MySQL root user. Default set to **empty**.
+
+* `openstack` role:
+  * `all_in_one`: Deploy OpenStack as All-in-One mode. Default set to `True`
+  * `nodes.block.storage_device`: Second disk of block storage node. Default set to `sdb`.
 
 
