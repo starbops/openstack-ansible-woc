@@ -185,17 +185,17 @@
   become: yes
   filesystem:
     fstype: ext4
-    dev: /dev/sdb1
+    dev: /dev/{{ storage_device }}1
 - name: Create the LVM physical volume
   become: yes
   lvg:
     vg: cinder-volumes
-    pvs: /dev/sdb1
+    pvs: /dev/{{ storage_device }}1
     state: present
-- name: Add a filter that accepts the /dev/sdb device and rejects all other devices
+- name: Add a filter that accepts the /dev/{{ storage_device }} device and rejects all other devices
   become: yes
   lineinfile:
-    line: 'filter = [ "a/sdb/", "r/.*/"]'
+    line: 'filter = [ "a/{{ storage_device }}/", "r/.*/"]'
     dest: /etc/lvm/lvm.conf
 
 # Install and configure Block Storage volume components

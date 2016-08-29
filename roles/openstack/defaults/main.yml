@@ -39,6 +39,7 @@ nodes:
     storage_interface: eth2
     storage_ip_address: '10.0.2.31'
   block:
+    storage_device: sdb
     management_interface: eth0
     management_ip_address: '10.0.1.41'
     storage_interface: eth1

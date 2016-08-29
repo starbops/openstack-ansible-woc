@@ -62,4 +62,6 @@ $ vagrant destroy -f
 Variables
 ---------
 
+* nodes.block.storage_device: Second disk of block storage node. Default to `sdb`.
+
 

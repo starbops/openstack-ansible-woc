@@ -13,6 +13,7 @@ nodes:
     management_interface: "{{ ansible_default_ipv4.interface }}"
     management_ip_address: "{{ ansible_default_ipv4.address }}"
   block:
+    storage_device: vdb
     management_interface: "{{ ansible_default_ipv4.interface }}"
     management_ip_address: "{{ ansible_default_ipv4.address }}"
 networking:
