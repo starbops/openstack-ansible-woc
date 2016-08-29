@@ -19,6 +19,8 @@ Vagrant.configure("2") do |config|
     domain.memory = "8192"
   end
 
+  config.vm.synced_folder './', '/vagrant', type: 'rsync'
+
   config.vm.provision "ansible" do |ansible|
     ansible.verbose = "v"
     ansible.playbook = "site.yml"
