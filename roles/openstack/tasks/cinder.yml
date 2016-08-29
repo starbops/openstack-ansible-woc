@@ -184,7 +184,8 @@
 - name: Partition second disk
   become: yes
   command: echo -e "o\nn\np\n1\n\n\nw\nq" | fdisk /dev/{{ nodes.block.storage_device }}
-  creates: /dev/{{ nodes.block.storage_device }}1
+  args:
+    creates: /dev/{{ nodes.block.storage_device }}1
 - name: Create filesystem on second disk
   become: yes
   filesystem:
