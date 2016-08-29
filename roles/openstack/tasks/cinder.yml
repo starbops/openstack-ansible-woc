@@ -1,0 +1,271 @@
+---
+# Install and configure controller node
+- name: Create cinder database
+  mysql_db:
+    name: cinder
+    state: present
+- name: Grant proper access to the cinder database from localhost
+  mysql_user:
+    name: cinder
+    password: "{{ cinder_password }}"
+    host: localhost
+    priv: cinder.*:ALL
+    state: present
+- name: Grant proper access to the cinder database from any hosts
+  mysql_user:
+    name: cinder
+    password: "{{ cinder_password }}"
+    host: '%'
+    priv: cinder.*:ALL
+    state: present
+- name: List all OpenStack users
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user list
+  register: user_list
+- name: Create the cinder user
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user create --password {{ cinder_password }} cinder
+  when: user_list.stdout.find('cinder') == -1
+- name: Add the admin role to the cinder user and service project
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role add --project service --user cinder admin
+  ignore_errors: yes
+- name: List all OpenStack services
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service list
+  register: service_list
+- name: Create the cinder service entity
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service create --name cinder --description "OpenStack Block Storage service" volume
+  when: service_list.stdout.find('cinder') == -1
+- name: Create the cinder version 2 service entity
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service create --name cinderv2 --description "OpenStack Block Storage service" volumev2
+  when: service_list.stdout.find('cinderv2') == -1
+- name: List all OpenStack endpoints
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint list
+  register: endpoint_list
+- name: Create the Block Storage service API endpoint
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint create \
+        --publicurl http://controller:8776/v2/%\(tenant_id\)s \
+        --adminurl http://controller:8776/v2/%\(tenant_id\)s \
+        --internalurl http://controller:8776/v2/%\(tenant_id\)s \
+        --region RegionOne \
+        volume
+  when: endpoint_list.stdout.find('cinder') == -1
+- name: Create the Block Storage version 2 service API endpoint
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint create \
+        --publicurl http://controller:8776/v2/%\(tenant_id\)s \
+        --adminurl http://controller:8776/v2/%\(tenant_id\)s \
+        --internalurl http://controller:8776/v2/%\(tenant_id\)s \
+        --region RegionOne \
+        volumev2
+  when: endpoint_list.stdout.find('cinderv2') == -1
+
+# Install and configure Block Storage controller components
+- name: Install the packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - cinder-api
+    - cinder-scheduler
+    - python-cinderclient
+- name: Remove keystone_authtoken section in /etc/cinder/cinder.conf
+  become: yes
+  ini_file:
+    dest: /etc/cinder/cinder.conf
+    section: keystone_authtoken
+    state: absent
+- name: Prepare cinder.conf
+  become: yes
+  ini_file:
+    dest: /etc/cinder/cinder.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: database, option: connection, value: "mysql://cinder:{{ cinder_password }}@controller/cinder" }
+    - { section: DEFAULT, option: rpc_backend, value: rabbit }
+    - { section: oslo_messaging_rabbit, option: rabbit_host, value: controller }
+    - { section: oslo_messaging_rabbit, option: rabbit_userid, value: openstack }
+    - { section: oslo_messaging_rabbit, option: rabbit_password, value: "{{ rabbit_openstack_password }}" }
+    - { section: DEFAULT, option: auth_strategy, value: keystone }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000' }
+    - { section: keystone_authtoken, option: auth_url, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: auth_plugin, value: password }
+    - { section: keystone_authtoken, option: project_domain_id, value: default }
+    - { section: keystone_authtoken, option: user_domain_id, value: default }
+    - { section: keystone_authtoken, option: project_name, value: service }
+    - { section: keystone_authtoken, option: username, value: cinder }
+    - { section: keystone_authtoken, option: password, value: "{{ cinder_password }}" }
+    - { section: DEFAULT, option: my_ip, value: "{{ nodes.controller.management_ip_address }}" }
+    - { section: oslo_concurrency, option: lock_path, value: /var/lock/cinder }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+- name: Populate the Block Storage  service database
+  become: yes
+  become_user: cinder
+  command: cinder-manage db sync
+
+# Finalize installation
+- name: Restart the Block Storage services
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - cinder-scheduler
+    - cinder-api
+- name: Remove the SQLite database file
+  become: yes
+  file:
+    path: /var/lib/cinder/cinder.sqlite
+    state: absent
+
+# Install and configure a storage node
+- name: Install QEMU support and LVM packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - qemu
+    - lvm2
+- name: Partition second disk
+  become: yes
+  shell: echo -e "o\nn\np\n1\n\n\nw\nq" | fdisk /dev/{{ nodes.block.storage_device }}
+  args:
+    creates: /dev/{{ nodes.block.storage_device }}1
+- name: Create filesystem on second disk
+  become: yes
+  filesystem:
+    fstype: ext4
+    dev: /dev/{{ nodes.block.storage_device }}1
+- name: Create the LVM physical volume
+  become: yes
+  lvg:
+    vg: cinder-volumes
+    pvs: /dev/{{ nodes.block.storage_device }}1
+    state: present
+- name: Add a filter that accepts the /dev/{{ nodes.block.storage_device }} device and rejects all other devices
+  become: yes
+  lineinfile:
+    line: 'filter = [ "a/{{ nodes.block.storage_device }}/", "r/.*/"]'
+    dest: /etc/lvm/lvm.conf
+
+# Install and configure Block Storage volume components
+- name: Install the packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - cinder-volume
+    - python-mysqldb
+- name: Remove keystone_authtoken section in /etc/cinder/cinder.conf
+  become: yes
+  ini_file:
+    dest: /etc/cinder/cinder.conf
+    section: keystone_authtoken
+    state: absent
+- name: Prepare cinder.conf
+  become: yes
+  ini_file:
+    dest: /etc/cinder/cinder.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: database, option: connection, value: "mysql://cinder:{{ cinder_password }}@controller/cinder" }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000' }
+    - { section: keystone_authtoken, option: auth_url, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: auth_plugin, value: password }
+    - { section: keystone_authtoken, option: project_domain_id, value: default }
+    - { section: keystone_authtoken, option: user_domain_id, value: default }
+    - { section: keystone_authtoken, option: project_name, value: service }
+    - { section: keystone_authtoken, option: username, value: cinder }
+    - { section: keystone_authtoken, option: password, value: "{{ cinder_password }}" }
+    - { section: DEFAULT, option: my_ip, value: "{{ nodes.block.management_ip_address }}" }
+    - { section: lvm, option: volume_driver, value: cinder.volume.drivers.lvm.LVMVolumeDriver }
+    - { section: lvm, option: volume-group, value: cinder-volumes }
+    - { section: lvm, option: iscsi_protocol, value: iscsi }
+    - { section: lvm, option: iscsi_helper, value: tgtadm }
+    - { section: DEFAULT, option: enabled_backends, value: lvm }
+    - { section: DEFAULT, option: glance_host, value: controller }
+    - { section: oslo_concurrency, option: lock_path, value: /var/lock/cinder }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+
+# Finalize installation
+- name: Restart the Block Storage volume service including its dependencies
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - tgt
+    - cinder-volume
+- name: Remove the SQLite database file
+  become: yes
+  file:
+    path: /var/lib/cinder/cinder.sqlite
+    state: absent
+
+# Verify operation
+- name: Configure the Block Storage service client to use API version 2.0
+  lineinfile:
+    line: 'export OS_VOLUME_API_VERSION=2'
+    dest: "{{ item }}"
+  with_items:
+    - "{{ ansible_user_dir }}/admin-openrc.sh"
+    - "{{ ansible_user_dir }}/demo-openrc.sh"

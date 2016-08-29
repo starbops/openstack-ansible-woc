@@ -12,6 +12,10 @@ nodes:
   compute:
     management_interface: "{{ ansible_default_ipv4.interface }}"
     management_ip_address: "{{ ansible_default_ipv4.address }}"
+  block:
+    storage_device: vdb
+    management_interface: "{{ ansible_default_ipv4.interface }}"
+    management_ip_address: "{{ ansible_default_ipv4.address }}"
 networking:
   management:
     network: "{{ '{}/{}'.format(ansible_default_ipv4.network, ansible_default_ipv4.netmask) | ipaddr('net') }}"
@@ -21,3 +25,5 @@ networking:
       start: '192.168.33.241'
       end: '192.168.33.250'
     gateway: '192.168.33.1'
+  storage:
+    network: "{{ '{}/{}'.format(ansible_default_ipv4.network, ansible_default_ipv4.netmask) | ipaddr('net') }}"

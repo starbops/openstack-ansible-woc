@@ -18,6 +18,7 @@ glance_password: password
 nova_password: password
 neutron_password: password
 metadata_proxy_shared_secret: secret
+cinder_password: password
 
 # Service nodes configuration
 nodes:
@@ -35,6 +36,14 @@ nodes:
     management_ip_address: '10.0.0.31'
     tunnel_interface: eth1
     tunnel_ip_address: '10.0.1.31'
+    storage_interface: eth2
+    storage_ip_address: '10.0.2.31'
+  block:
+    storage_device: sdb
+    management_interface: eth0
+    management_ip_address: '10.0.1.41'
+    storage_interface: eth1
+    storage_ip_address: '10.0.2.41'
 
 # Network-related configuration
 networking:
@@ -48,3 +57,5 @@ networking:
       start: '203.0.113.101'
       end: '203.0.113.200'
     gateway: '203.0.113.1'
+  storage:
+    network: '10.0.2.0/24'
