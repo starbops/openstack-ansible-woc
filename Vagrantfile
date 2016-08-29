@@ -27,10 +27,6 @@ Vagrant.configure("2") do |config|
     domain.storage :file, size: "20G"
   end
 
-  config.vm.provision "shell", inline: <<-SHELL
-    echo -e "o\nn\np\n1\n\n\nw\nq" | fdisk /dev/sdb
-  SHELL
-
   config.vm.provision "ansible" do |ansible|
     ansible.verbose = "v"
     ansible.playbook = "site.yml"

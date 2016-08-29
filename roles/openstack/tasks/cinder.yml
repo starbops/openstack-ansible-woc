@@ -181,6 +181,10 @@
   with_items:
     - qemu
     - lvm2
+- name: Partition second disk
+  become: yes
+  command: echo -e "o\nn\np\n1\n\n\nw\nq" | fdisk /dev/{{ storage_device }}
+  creates: /dev/{{ storage_device }}1
 - name: Create filesystem on second disk
   become: yes
   filesystem:
