@@ -183,23 +183,23 @@
     - lvm2
 - name: Partition second disk
   become: yes
-  command: echo -e "o\nn\np\n1\n\n\nw\nq" | fdisk /dev/{{ storage_device }}
-  creates: /dev/{{ storage_device }}1
+  command: echo -e "o\nn\np\n1\n\n\nw\nq" | fdisk /dev/{{ nodes.block.storage_device }}
+  creates: /dev/{{ nodes.block.storage_device }}1
 - name: Create filesystem on second disk
   become: yes
   filesystem:
     fstype: ext4
-    dev: /dev/{{ storage_device }}1
+    dev: /dev/{{ nodes.block.storage_device }}1
 - name: Create the LVM physical volume
   become: yes
   lvg:
     vg: cinder-volumes
-    pvs: /dev/{{ storage_device }}1
+    pvs: /dev/{{ nodes.block.storage_device }}1
     state: present
-- name: Add a filter that accepts the /dev/{{ storage_device }} device and rejects all other devices
+- name: Add a filter that accepts the /dev/{{ nodes.block.storage_device }} device and rejects all other devices
   become: yes
   lineinfile:
-    line: 'filter = [ "a/{{ storage_device }}/", "r/.*/"]'
+    line: 'filter = [ "a/{{ nodes.block.storage_device }}/", "r/.*/"]'
     dest: /etc/lvm/lvm.conf
 
 # Install and configure Block Storage volume components
