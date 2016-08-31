@@ -1,0 +1,137 @@
+---
+# Install and configure
+- name: List all OpenStack users
+  environment:
+    OS_PROJECT_DOMAIN_ID: 'default'
+    OS_USER_DOMAIN_ID: 'default'
+    OS_TENANT_NAME: 'admin'
+    OS_USERNAME: 'admin'
+    OS_PASSWORD: "{{ admin_password }}"
+    OS_AUTH_URL: 'http://controller:35357/v3'
+  command: openstack user list
+  register: user_list
+- name: Create the swift user
+  environment:
+    OS_PROJECT_DOMAIN_ID: 'default'
+    OS_USER_DOMAIN_ID: 'default'
+    OS_TENANT_NAME: 'admin'
+    OS_USERNAME: 'admin'
+    OS_PASSWORD: "{{ admin_password }}"
+    OS_AUTH_URL: 'http://controller:35357/v3'
+  command: openstack user create --password {{ swift_password }} swift
+  when: user_list.stdout.find('swift') == -1
+- name: Add the admin role to the swift user
+  environment:
+    OS_PROJECT_DOMAIN_ID: 'default'
+    OS_USER_DOMAIN_ID: 'default'
+    OS_TENANT_NAME: 'admin'
+    OS_USERNAME: 'admin'
+    OS_PASSWORD: "{{ admin_password }}"
+    OS_AUTH_URL: 'http://controller:35357/v3'
+  command: openstack role add --project service --user swift admin
+  ignore_errors: yes
+- name: List all OpenStack services
+  environment:
+    OS_PROJECT_DOMAIN_ID: 'default'
+    OS_USER_DOMAIN_ID: 'default'
+    OS_TENANT_NAME: 'admin'
+    OS_USERNAME: 'admin'
+    OS_PASSWORD: "{{ admin_password }}"
+    OS_AUTH_URL: 'http://controller:35357/v3'
+  command: openstack service list
+  register: service_list
+- name: Create the swift service entity
+  environment:
+    OS_PROJECT_DOMAIN_ID: 'default'
+    OS_USER_DOMAIN_ID: 'default'
+    OS_TENANT_NAME: 'admin'
+    OS_USERNAME: 'admin'
+    OS_PASSWORD: "{{ admin_password }}"
+    OS_AUTH_URL: 'http://controller:35357/v3'
+  command: >
+    openstack service create \
+      --name swift --description "OpenStack Object Storage" object-store
+  when: service_list.stdout.find('object-store') == -1
+- name: List all OpenStack endpoints
+  environment:
+    OS_PROJECT_DOMAIN_ID: 'default'
+    OS_USER_DOMAIN_ID: 'default'
+    OS_TENANT_NAME: 'admin'
+    OS_USERNAME: 'admin'
+    OS_PASSWORD: "{{ admin_password }}"
+    OS_AUTH_URL: 'http://controller:35357/v3'
+  command: openstack endpoint list
+  register: endpoint_list
+- name: Create the Object Storage service API endpoint
+  environment:
+    OS_PROJECT_DOMAIN_ID: 'default'
+    OS_USER_DOMAIN_ID: 'default'
+    OS_TENANT_NAME: 'admin'
+    OS_USERNAME: 'admin'
+    OS_PASSWORD: "{{ admin_password }}"
+    OS_AUTH_URL: 'http://controller:35357/v3'
+  command: >
+    openstack endpoint create \
+      --publicurl 'http://controller:8080/v1/AUTH_%(tenant_id)s' \
+      --internalurl 'http://controller:8080/v1/AUTH_%(tenant_id)s' \
+      --adminurl http://controller:8080 \
+      --region RegionOne \
+      object-store
+  when: endpoint_list.stdout.find('object-store') == -1
+
+# To install and configure the controller node components
+- name: Install the packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - swift
+    - swift-proxy
+    - python-swiftclient
+    - python-keystoneclient
+    - python-keystonemiddleware
+    - memcached
+- name: Create the /etc/swift directory
+  become: yes
+  file:
+    path: /etc/swift
+    state: directory
+- name: Obtain the proxy service configuration file from the Object Storage source repository
+  become: yes
+  get_url:
+    url: https://git.openstack.org/cgit/openstack/swift/plain/etc/proxy-server.conf-sample?h=kilo-eol
+    dest: /etc/swift/proxy-server.conf
+- name: Remove filter:authtoken section in /etc/swift/proxy-server.conf
+  become: yes
+  ini_file:
+    dest: /etc/swift/proxy-server.conf
+    section: 'filter:authtoken'
+    state: absent
+- name: Prepare proxy-server.conf
+  become: yes
+  ini_file:
+    dest: /etc/swift/proxy-server.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: bind_port, value: 8080 }
+    - { section: DEFAULT, option: user, value: swift }
+    - { section: DEFAULT, option: swift_dir, value: /etc/swift }
+    - { section: 'pipeline:main', option: pipeline, value: 'catch_errors gatekeeper healthcheck proxy-logging cache container_sync bulk ratelimit authtoken keystoneauth container-quotas account-quotas slo dlo proxy-logging proxy-server' }
+    - { section: 'app:proxy-server', option: account_autocreate, value: 'true' }
+    - { section: 'filter:keystoneauth', option: use, value: 'egg:swift#keystoneauth' }
+    - { section: 'filter:keystoneauth', option: operator_roles, value: 'admin,user' }
+    - { section: 'filter:authtoken', option: paste.filter_factory, value: 'keystonemiddleware.auth_token:filter_factory' }
+    - { section: 'filter:authtoken', option: auth_uri, value: 'http://controller:5000' }
+    - { section: 'filter:authtoken', option: auth_url, value: 'http://controller:35357' }
+    - { section: 'filter:authtoken', option: auth_plugin, value: password }
+    - { section: 'filter:authtoken', option: project_domain_id, value: default }
+    - { section: 'filter:authtoken', option: user_domain_id, value: default }
+    - { section: 'filter:authtoken', option: project_name, value: service }
+    - { section: 'filter:authtoken', option: username, value: swift }
+    - { section: 'filter:authtoken', option: password, value: "{{ swift_password }}" }
+    - { section: 'filter:authtoken', option: delay_auth_decision, value: 'true' }
+    - { section: 'filter:cache', option: memcache_servers, value: '127.0.0.1:11211' }

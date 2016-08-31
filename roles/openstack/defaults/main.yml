@@ -19,6 +19,7 @@ nova_password: password
 neutron_password: password
 metadata_proxy_shared_secret: secret
 cinder_password: password
+swift_password: password
 
 # Service nodes configuration
 nodes:
