@@ -2,7 +2,6 @@
 # vi: set ft=ruby :
 
 storage_disk_path = "./tmp/storage_disk.vdi"
-storage_disk_size = 20
 
 Vagrant.configure("2") do |config|
   config.vm.hostname = "openstack"
@@ -14,11 +13,11 @@ Vagrant.configure("2") do |config|
 
   config.vm.provider "virtualbox" do |vb|
     vb.cpus = "2"
-    vb.memory = "2048"
-    unless File.exist?(storage_disk_path)
-      vb.customize ["createhd", "--filename", storage_disk_path, "--size", storage_disk_size * 1024]
+    vb.memory = "8192"
+    unless File.exist?("./tmp/storage_disk.vdi")
+      vb.customize ["createhd", "--filename", "./tmp/storage_disk.vdi", "--size", 20 * 1024]
     end
-    vb.customize ["storageattach", :id, "--storagectl", "SATAController", "--port", 1, "--device", 0, "--type", "hdd", "--medium", storage_disk_path]
+    vb.customize ["storageattach", :id, "--storagectl", "SATAController", "--port", 1, "--device", 0, "--type", "hdd", "--medium", "./tmp/storage_disk.vdi"]
   end
 
   config.vm.provider "libvirt" do |domain|
