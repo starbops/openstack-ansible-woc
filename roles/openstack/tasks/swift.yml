@@ -100,7 +100,7 @@
 - name: Obtain the proxy service configuration file from the Object Storage source repository
   become: yes
   get_url:
-    url: https://git.openstack.org/cgit/openstack/swift/plain/etc/proxy-server.conf-sample?h=kilo-eol
+    url: 'https://git.openstack.org/cgit/openstack/swift/plain/etc/proxy-server.conf-sample?h=kilo-eol'
     dest: /etc/swift/proxy-server.conf
 - name: Remove filter:authtoken section in /etc/swift/proxy-server.conf
   become: yes
@@ -200,11 +200,11 @@
     url: "{{ item.url }}"
     dest: "{{ item.dest }}"
   with_items:
-    - { url: https://git.openstack.org/cgit/openstack/swift/plain/etc/account-server.conf-sample?h=kilo-eol, dest: /etc/swift/account-server.conf }
-    - { url: https://git.openstack.org/cgit/openstack/swift/plain/etc/container-server.conf-sample?h=kilo-eol, dest: /etc/swift/container-server.conf }
-    - { url: https://git.openstack.org/cgit/openstack/swift/plain/etc/object-server.conf-sample?h=kilo-eol, dest: /etc/swift/object-server.conf }
-    - { url: https://git.openstack.org/cgit/openstack/swift/plain/etc/container-reconciler.conf-sample?h=kilo-eol, dest: /etc/swift/container-reconciler.conf }
-    - { url: https://git.openstack.org/cgit/openstack/swift/plain/etc/object-expirer.conf-sample?h=kilo-eol, dest: /etc/swift/object-expirer.conf }
+    - { url: 'https://git.openstack.org/cgit/openstack/swift/plain/etc/account-server.conf-sample?h=kilo-eol', dest: /etc/swift/account-server.conf }
+    - { url: 'https://git.openstack.org/cgit/openstack/swift/plain/etc/container-server.conf-sample?h=kilo-eol', dest: /etc/swift/container-server.conf }
+    - { url: 'https://git.openstack.org/cgit/openstack/swift/plain/etc/object-server.conf-sample?h=kilo-eol', dest: /etc/swift/object-server.conf }
+    - { url: 'https://git.openstack.org/cgit/openstack/swift/plain/etc/container-reconciler.conf-sample?h=kilo-eol', dest: /etc/swift/container-reconciler.conf }
+    - { url: 'https://git.openstack.org/cgit/openstack/swift/plain/etc/object-expirer.conf-sample?h=kilo-eol', dest: /etc/swift/object-expirer.conf }
 - name: Prepare account-server.conf
   become: yes
   ini_file:
