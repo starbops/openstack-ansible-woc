@@ -135,3 +135,130 @@
     - { section: 'filter:authtoken', option: password, value: "{{ swift_password }}" }
     - { section: 'filter:authtoken', option: delay_auth_decision, value: 'true' }
     - { section: 'filter:cache', option: memcache_servers, value: '127.0.0.1:11211' }
+
+# Install and configure the storage node
+- name: Install the supporting utility packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - xfsprogs
+    - rsync
+- name: Partition additional disk
+  become: yes
+  shell: echo -e "o\nn\np\n1\n\n\nw\nq" | fdisk /dev/{{ nodes.object.storage_device }}
+  args:
+    creates: /dev/{{ nodes.object.storage_device }}1
+- name: Create filesystem on additional disk
+  become: yes
+  filesystem:
+    fstype: xfs
+    dev: /dev/{{ nodes.object.storage_device }}1
+- name: Create the mount point directory structure
+  become: yes
+  file:
+    path: /srv/node/{{ nodes.object.storage_device }}1
+    owner: swift
+    group: swift
+    recurse: yes
+    state: directory
+- name: Edit the /etc/fstab file
+  become: yes
+  lineinfile:
+    line: /dev/{{ nodes.object.storage_device }}1 /srv/node/{{ nodes.object.storage_device }}1 xfs noatime,nodiratime,nobarrier,logbufs=8 0 2
+    state: present
+- name: Prepare rsyncd.conf
+  become: yes
+  template:
+    src: rsyncd.conf.j2
+    dest: /etc/rsyncd.conf
+- name: Enable the rsync service
+  become: yes
+  lineinfile:
+    line: 'RSYNC_ENABLE=true'
+- name: Start the rsync service
+  become: yes
+  service:
+    name: rsync
+    state: started
+
+# Install and configure storage node components
+- name: Install the packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - swift
+    - swift-account
+    - swift-container
+    - swift-object
+- name: Obtain the account, container, object, container-reconciler, and object-expirer service configuration files from the Object Storage source repository
+  become: yes
+  get_url:
+    url: "{{ item.url }}"
+    dest: "{{ item.dest }}"
+  with_items:
+    - { url: https://git.openstack.org/cgit/openstack/swift/plain/etc/account-server.conf-sample?h=kilo-eol, dest: /etc/swift/account-server.conf }
+    - { url: https://git.openstack.org/cgit/openstack/swift/plain/etc/container-server.conf-sample?h=kilo-eol, dest: /etc/swift/container-server.conf }
+    - { url: https://git.openstack.org/cgit/openstack/swift/plain/etc/object-server.conf-sample?h=kilo-eol, dest: /etc/swift/object-server.conf }
+    - { url: https://git.openstack.org/cgit/openstack/swift/plain/etc/container-reconciler.conf-sample?h=kilo-eol, dest: /etc/swift/container-reconciler.conf }
+    - { url: https://git.openstack.org/cgit/openstack/swift/plain/etc/object-expirer.conf-sample?h=kilo-eol, dest: /etc/swift/object-expirer.conf }
+- name: Prepare account-server.conf
+  become: yes
+  ini_file:
+    dest: /etc/swift/account-server.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: bind_ip, value: "{{ nodes.object.management_ip_address }}" }
+    - { section: DEFAULT, option: bind_port, value: 6002 }
+    - { section: DEFAULT, option: user, value: swift }
+    - { section: DEFAULT, option: swift_dir, value: /etc/swift }
+    - { section: DEFAULT, option: devices, value: /srv/node }
+    - { section: 'pipeline:main', option: pipeline, value: 'healthcheck recon account-server' }
+    - { section: 'filter:recon', option: recon_cache_path, value: /var/cache/swift }
+- name: Prepare container-server.conf
+  become: yes
+  ini_file:
+    dest: /etc/swift/container-server.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: bind_ip, value: "{{ nodes.object.management_ip_address }}" }
+    - { section: DEFAULT, option: bind_port, value: 6001 }
+    - { section: DEFAULT, option: user, value: swift }
+    - { section: DEFAULT, option: swift_dir, value: /etc/swift }
+    - { section: DEFAULT, option: devices, value: /srv/node }
+    - { section: 'pipeline:main', option: pipeline, value: 'healthcheck recon container-server' }
+    - { section: 'filter:recon', option: recon_cache_path, value: /var/cache/swift }
+- name: Prepare object-server.conf
+  become: yes
+  ini_file:
+    dest: /etc/swift/object-server.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: bind_ip, value: "{{ nodes.object.management_ip_address }}" }
+    - { section: DEFAULT, option: bind_port, value: 6000 }
+    - { section: DEFAULT, option: user, value: swift }
+    - { section: DEFAULT, option: swift_dir, value: /etc/swift }
+    - { section: DEFAULT, option: devices, value: /srv/node }
+    - { section: 'pipeline:main', option: pipeline, value: 'healthcheck recon object-server' }
+    - { section: 'filter:recon', option: recon_cache_path, value: /var/cache/swift }
+    - { section: 'filter:recon', option: recon_lock_path, value: /var/lock }
+- name: Create the recon directory and ensure proper ownership of it
+  become: yes
+  file:
+    path: /var/cache/swift
+    owner: swift
+    group: swift
+    recurse: yes
+    state: directory
