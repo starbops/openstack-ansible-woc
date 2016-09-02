@@ -265,3 +265,93 @@
     group: swift
     recurse: yes
     state: directory
+
+# Create initial rings
+- name: Create the base account.builder file
+  become: yes
+  command: swift-ring-builder account.builder create 10 3 1
+    chdir: /etc/swift
+    creates: /etc/swift/account.builder
+- name: Add each storage node to the ring
+  become: yes
+  command: swift-ring-builder account.builder add r1z1-{{ nodes.object.management_ip_address }}:6002/{{ nodes.object.storage_device }}1 100
+    chdir: /etc/swift
+    creates: /etc/swift/account.ring.gz
+- name: Rebalance the ring
+  become: yes
+  command: swift-ring-builder account.builder rebalance
+    chdir: /etc/swift
+  ignore_errors: yes
+- name: Create the base container.builder file
+  become: yes
+  command: swift-ring-builder container.builder create 10 3 1
+    chdir: /etc/swift
+    creates: /etc/swift/container.builder
+- name: Add each storage node to the ring
+  become: yes
+  command: swift-ring-builder container.builder add r1z1-{{ nodes.object.management_ip_address }}:6001/{{ nodes.object.storage_device }}1 100
+    chdir: /etc/swift
+    creates: /etc/swift/container.ring.gz
+- name: Rebalance the ring
+  become: yes
+  command: swift-ring-builder container.builder rebalance
+    chdir: /etc/swift
+  ignore_errors: yes
+- name: Create the base object.builder file
+  become: yes
+  command: swift-ring-builder object.builder create 10 3 1
+    chdir: /etc/swift
+    creates: /etc/swift/object.builder
+- name: Add each storage node to the ring
+  become: yes
+  command: swift-ring-builder object.builder add r1z1-{{ nodes.object.management_ip_address }}:6000/{{ nodes.object.storage_device }}1 100
+    chdir: /etc/swift
+    creates: /etc/swift/object.ring.gz
+- name: Rebalance the ring
+  become: yes
+  command: swift-ring-builder object.builder rebalance
+    chdir: /etc/swift
+  ignore_errors: yes
+
+# Distribute ring configuration files
+# TODO:
+
+# Configure hashes and default storage policy
+- name: Obtain the swift.conf file from the Object Storage source repository
+  become: yes
+  get_url:
+    url: 'https://git.openstack.org/cgit/openstack/swift/plain/etc/swift.conf-sample?h=kilo-eol'
+    dest: /etc/swift/swift.conf
+- name: Prepare swift.conf
+  become: yes
+  ini_file:
+    dest: /etc/swift/swift.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: swift-hash, option: swift_hash_path_suffix, value: HASH_PATH_SUFFIX }
+    - { section: swift-hash, option: swift_hash_path_prefix, value: HASH_PATH_PREFIX }
+    - { section: 'storage-policy:0', option: name, value: Policy-0 }
+    - { section: 'storage-policy:0', option: default, value: 'yes' }
+- name: Ensure proper ownership of the configuration directory
+  become: yes
+  file:
+    path: /etc/swift
+    owner: swift
+    group: swift
+    recurse: yes
+    state: directory
+- name: Restart the Object Storage proxy service
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - memcached
+    - swift-proxy
+- name: Restart the Object Storage services on storage nodes
+  become: yes
+  command: swift-init all start
+  ignore_errors: yes
