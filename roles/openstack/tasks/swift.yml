@@ -270,56 +270,56 @@
 - name: Create the base account.builder file
   become: yes
   command: swift-ring-builder account.builder create 10 3 1
-    args:
-      chdir: /etc/swift
-      creates: /etc/swift/account.builder
+  args:
+    chdir: /etc/swift
+    creates: /etc/swift/account.builder
 - name: Add each storage node to the ring
   become: yes
   command: swift-ring-builder account.builder add r1z1-{{ nodes.object.management_ip_address }}:6002/{{ nodes.object.storage_device }}1 100
-    args:
-      chdir: /etc/swift
-      creates: /etc/swift/account.ring.gz
+  args:
+    chdir: /etc/swift
+    creates: /etc/swift/account.ring.gz
 - name: Rebalance the ring
   become: yes
   command: swift-ring-builder account.builder rebalance
-    args:
-      chdir: /etc/swift
+  args:
+    chdir: /etc/swift
   ignore_errors: yes
 - name: Create the base container.builder file
   become: yes
   command: swift-ring-builder container.builder create 10 3 1
-    args:
-      chdir: /etc/swift
-      creates: /etc/swift/container.builder
+  args:
+    chdir: /etc/swift
+    creates: /etc/swift/container.builder
 - name: Add each storage node to the ring
   become: yes
   command: swift-ring-builder container.builder add r1z1-{{ nodes.object.management_ip_address }}:6001/{{ nodes.object.storage_device }}1 100
-    args:
-      chdir: /etc/swift
-      creates: /etc/swift/container.ring.gz
+  args:
+    chdir: /etc/swift
+    creates: /etc/swift/container.ring.gz
 - name: Rebalance the ring
   become: yes
   command: swift-ring-builder container.builder rebalance
-    args:
-      chdir: /etc/swift
+  args:
+    chdir: /etc/swift
   ignore_errors: yes
 - name: Create the base object.builder file
   become: yes
   command: swift-ring-builder object.builder create 10 3 1
-    args:
-      chdir: /etc/swift
-      creates: /etc/swift/object.builder
+  args:
+    chdir: /etc/swift
+    creates: /etc/swift/object.builder
 - name: Add each storage node to the ring
   become: yes
   command: swift-ring-builder object.builder add r1z1-{{ nodes.object.management_ip_address }}:6000/{{ nodes.object.storage_device }}1 100
-    args:
-      chdir: /etc/swift
-      creates: /etc/swift/object.ring.gz
+  args:
+    chdir: /etc/swift
+    creates: /etc/swift/object.ring.gz
 - name: Rebalance the ring
   become: yes
   command: swift-ring-builder object.builder rebalance
-    args:
-      chdir: /etc/swift
+  args:
+    chdir: /etc/swift
   ignore_errors: yes
 
 # Distribute ring configuration files
