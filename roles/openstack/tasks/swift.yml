@@ -102,7 +102,7 @@
   get_url:
     url: 'https://git.openstack.org/cgit/openstack/swift/plain/etc/proxy-server.conf-sample?h=kilo-eol'
     dest: /etc/swift/proxy-server.conf
-- name: Remove filter:authtoken section in /etc/swift/proxy-server.conf
+- name: Remove filter:authtoken section in proxy-server.conf
   become: yes
   ini_file:
     dest: /etc/swift/proxy-server.conf
@@ -163,20 +163,23 @@
     group: swift
     recurse: yes
     state: directory
-- name: Edit the /etc/fstab file
+- name: Edit the fstab file
   become: yes
   lineinfile:
+    dest: /etc/fstab
     line: /dev/{{ nodes.object.storage_device }}1 /srv/node/{{ nodes.object.storage_device }}1 xfs noatime,nodiratime,nobarrier,logbufs=8 0 2
     state: present
 - name: Prepare rsyncd.conf
   become: yes
   template:
     src: rsyncd.conf.j2
-    dest: /etc/rsyncd.conf
+    dest: rsyncd.conf
 - name: Enable the rsync service
   become: yes
   lineinfile:
+    dest: /etc/rsyncd.conf
     line: 'RSYNC_ENABLE=true'
+    state: present
 - name: Start the rsync service
   become: yes
   service:
