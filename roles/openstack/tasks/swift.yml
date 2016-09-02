@@ -173,7 +173,7 @@
   become: yes
   template:
     src: rsyncd.conf.j2
-    dest: rsyncd.conf
+    dest: /etc/rsyncd.conf
 - name: Enable the rsync service
   become: yes
   lineinfile:
