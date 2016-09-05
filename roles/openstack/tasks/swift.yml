@@ -159,9 +159,6 @@
   become: yes
   file:
     path: /srv/node/{{ nodes.object.storage_device }}1
-    owner: swift
-    group: swift
-    recurse: yes
     state: directory
 - name: Edit the fstab file
   become: yes
@@ -258,6 +255,14 @@
     - { section: 'pipeline:main', option: pipeline, value: 'healthcheck recon object-server' }
     - { section: 'filter:recon', option: recon_cache_path, value: /var/cache/swift }
     - { section: 'filter:recon', option: recon_lock_path, value: /var/lock }
+- name: Ensure proper ownership of the mount point directory structure
+  becom: yes
+  file:
+    path: /srv/node
+    owner: swift
+    group: swift
+    recurse: yes
+    state: directory
 - name: Create the recon directory and ensure proper ownership of it
   become: yes
   file:
