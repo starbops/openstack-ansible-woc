@@ -202,6 +202,7 @@
   get_url:
     url: "{{ item.url }}"
     dest: "{{ item.dest }}"
+    force: yes
   with_items:
     - { url: 'https://git.openstack.org/cgit/openstack/swift/plain/etc/account-server.conf-sample?h=kilo-eol', dest: /etc/swift/account-server.conf }
     - { url: 'https://git.openstack.org/cgit/openstack/swift/plain/etc/container-server.conf-sample?h=kilo-eol', dest: /etc/swift/container-server.conf }
