@@ -177,7 +177,7 @@
 - name: Enable the rsync service
   become: yes
   lineinfile:
-    dest: /etc/rsyncd.conf
+    dest: /etc/default/rsync
     line: 'RSYNC_ENABLE=true'
     state: present
 - name: Start the rsync service
