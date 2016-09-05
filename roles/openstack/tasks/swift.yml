@@ -263,7 +263,7 @@
     - { section: 'filter:recon', option: recon_cache_path, value: /var/cache/swift }
     - { section: 'filter:recon', option: recon_lock_path, value: /var/lock }
 - name: Ensure proper ownership of the mount point directory structure
-  becom: yes
+  become: yes
   file:
     path: /srv/node
     owner: swift
