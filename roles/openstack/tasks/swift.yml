@@ -353,8 +353,8 @@
     value: "{{ item.value }}"
     state: present
   with_items:
-    - { section: swift-hash, option: swift_hash_path_suffix, value: "{{ ansible_date_time.epoch | hash('md5') }}" }
-    - { section: swift-hash, option: swift_hash_path_prefix, value: "{{ ansible_date_time.epoch | hash('md5') }}" }
+    - { section: swift-hash, option: swift_hash_path_suffix, value: "{{ ansible_date_time.iso8601_micro | hash('md5') }}" }
+    - { section: swift-hash, option: swift_hash_path_prefix, value: "{{ ansible_date_time.iso8601_micro | hash('md5') }}" }
     - { section: 'storage-policy:0', option: name, value: Policy-0 }
     - { section: 'storage-policy:0', option: default, value: 'yes' }
 - name: Ensure proper ownership of the configuration directory
