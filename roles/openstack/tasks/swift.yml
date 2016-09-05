@@ -166,6 +166,13 @@
     dest: /etc/fstab
     line: /dev/{{ nodes.object.storage_device }}1 /srv/node/{{ nodes.object.storage_device }}1 xfs noatime,nodiratime,nobarrier,logbufs=8 0 2
     state: present
+- name: Mount the devices
+  become: yes
+  mount:
+    name: /srv/node/{{ nodes.object.storage_device }}1
+    src: /dev/{{ nodes.object.storage_device }}1
+    fstype: xfs
+    state: mounted
 - name: Prepare rsyncd.conf
   become: yes
   template:
