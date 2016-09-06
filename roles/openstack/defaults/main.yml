@@ -42,7 +42,7 @@ nodes:
   block:
     storage_device: sdb
     management_interface: eth0
-    management_ip_address: '10.0.1.41'
+    management_ip_address: '10.0.0.41'
     storage_interface: eth1
     storage_ip_address: '10.0.2.41'
   object:
