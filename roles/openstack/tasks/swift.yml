@@ -373,6 +373,7 @@
   with_items:
     - memcached
     - swift-proxy
+    - apache2
 - name: Restart the Object Storage services on storage nodes
   become: yes
   command: swift-init all start
