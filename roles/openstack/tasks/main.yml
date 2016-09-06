@@ -7,3 +7,4 @@
 - include: init_net.yml
 - include: horizon.yml
 - include: cinder.yml
+- include: heat.yml
