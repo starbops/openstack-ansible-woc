@@ -178,6 +178,13 @@
     - { section: DEFAULT, option: stack_user_domain_name, value: heat_user_domain }
     - { section: DEFAULT, option: verbose, value: 'True' }
 - name: Create the heat domain in Identity service
+  environment:
+    OS_PROJECT_DOMAIN_ID: 'default'
+    OS_USER_DOMAIN_ID: 'default'
+    OS_TENANT_NAME: 'admin'
+    OS_USERNAME: 'admin'
+    OS_PASSWORD: "{{ admin_password }}"
+    OS_AUTH_URL: 'http://controller:35357/v3'
   command: >
     heat-keystone-setup-domain \
       --stack-user-domain-name heat_user_domain \
