@@ -71,6 +71,7 @@
       --os-project-name admin \
       --os-username admin --os-password {{ admin_password }} \
       role add --project demo --user demo heat_stack_owner
+  ignore_errors: yes
 - name: Create the heat_stack_user role
   command: >
     openstack \
