@@ -1,0 +1,206 @@
+---
+# Configure prerequisites
+- name: Create heat database
+  mysql_db:
+    name: heat
+    state: present
+- name: Grant proper access to the heat database from localhost
+  mysql_user:
+    name: heat
+    password: "{{ heat_password }}"
+    host: localhost
+    priv: heat.*:ALL
+    state: present
+- name: Grant proper access to the heat database from any hosts
+  mysql_user:
+    name: heat
+    password: "{{ heat_password }}"
+    host: '%'
+    priv: heat.*:ALL
+    state: present
+- name: List all OpenStack users
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user list
+  register: user_list
+- name: Create the heat user
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user create --password {{ heat_password }} heat
+  when: user_list.stdout.find('heat') == -1
+- name: Add the admin role to the heat user and service project
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role add --project service --user heat admin
+  ignore_errors: yes
+- name: Create the heat_stack_owner role
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role create heat_stack_owner
+- name: Add the heat_stack_owner role to the demo tenant and user
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role add --project demo --user demo heat_stack_owner
+- name: Create the heat_stack_user role
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role create heat_stack_user
+- name: List all OpenStack services
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service list
+  register: service_list
+- name: Create the heat service entities
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service create --name heat --description "Orchestration" orchestration
+  when: service_list.stdout.find('orchestration') == -1
+- name: Create the heat-cfn service entities
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service create --name heat-cfn --description "Orchestration" cloudformation
+  when: service_list.stdout.find('cloudformation') == -1
+- name: List all OpenStack endpoints
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint list
+  register: endpoint_list
+- name: Create the Orchestration service API endpoint
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint create \
+        --publicurl http://controller:8004/v1/%\(tenant_id\)s \
+        --adminurl http://controller:8004/v1/%\(tenant_id\)s \
+        --internalurl http://controller:8004/v1/%\(tenant_id\)s \
+        --region RegionOne \
+        orchestration
+  when: endpoint_list.stdout.find('heat') == -1
+- name: Create the Orchestration service (cloudformation) API endpoint
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint create \
+        --publicurl http://controller:8000/v1 \
+        --adminurl http://controller:8000/v1 \
+        --internalurl http://controller:8000/v1 \
+        --region RegionOne \
+        cloudformation
+  when: endpoint_list.stdout.find('heat-cfn') == -1
+
+# Install and configure the Orchestration components
+- name: Install the packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - heat-api
+    - heat-api-cfn
+    - heat-engine
+    - python-heatclient
+- name: Remove keystone_authtoken section in /etc/heat/heat.conf
+  become: yes
+  ini_file:
+    dest: /etc/heat/heat.conf
+    section: keystone_authtoken
+    state: absent
+- name: Prepare heat.conf
+  become: yes
+  ini_file:
+    dest: /etc/heat/heat.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: database, option: connection, value: "mysql://heat:{{ heat_password }}@controller/heat" }
+    - { section: DEFAULT, option: rpc_backend, value: rabbit }
+    - { section: oslo_messaging_rabbit, option: rabbit_host, value: controller }
+    - { section: oslo_messaging_rabbit, option: rabbit_userid, value: openstack }
+    - { section: oslo_messaging_rabbit, option: rabbit_password, value: "{{ rabbit_openstack_password }}" }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000/v2.0' }
+    - { section: keystone_authtoken, option: identity_uri, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: admin_tenant_name, value: service }
+    - { section: keystone_authtoken, option: admin_user, value: heat }
+    - { section: keystone_authtoken, option: admin_password, value: "{{ heat_password }}" }
+    - { section: ec2authtoken, option: auth_uri, value: 'http://controller:5000/v2.0' }
+    - { section: DEFAULT, option: heat_metadata_server_url, value: 'http://controller:8000' }
+    - { section: DEFAULT, option: heat_waitcondition_server_url, value: 'http://controller:8000/v1/waitcondition' }
+    - { section: DEFAULT, option: stack_domain_admin, value: heat_domain_admin }
+    - { section: DEFAULT, option: stack_domain_admin_password, value: "{{ heat_domain_password }}" }
+    - { section: DEFAULT, option: stack_user_domain_name, value: heat_user_domain }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+- name: Create the heat domain in Identity service
+  command: >
+    heat-keystone-setup-domain \
+      --stack-user-domain-name heat_user_domain \
+      --stack-domain-admin heat_domain_admin \
+      --stack-domain-admin-password {{ heat_domain_password }}
+  ignore_errors: yes
+- name: Populate the Orchestration service database
+  become: yes
+  become_user: heat
+  command: heat-manage db_sync
+
+# Finalize installation
+- name: Restart the Orchestration services
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - heat-api
+    - heat-api-cfn
+    - heat-engine
+- name: Remove the SQLite database file
+  become: yes
+  file:
+    path: /var/lib/heat/heat.sqlite
+    state: absent
