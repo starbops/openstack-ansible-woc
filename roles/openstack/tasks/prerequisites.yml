@@ -3,7 +3,7 @@
   become: yes
   lineinfile:
     dest: /etc/hosts
-    line: "{{ nodes.controller.management_ip_address }} controller network compute1 block1"
+    line: "{{ nodes.controller.management_ip_address }} controller network compute1 block1 object1"
     state: present
 - name: Basic dependencies
   become: yes

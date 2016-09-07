@@ -191,6 +191,7 @@
   filesystem:
     fstype: ext4
     dev: /dev/{{ nodes.block.storage_device }}1
+  ignore_errors: yes
 - name: Create the LVM physical volume
   become: yes
   lvg:
