@@ -22,6 +22,7 @@ cinder_password: password
 swift_password: password
 heat_password: password
 heat_domain_password: password
+ceilometer_password: password
 
 # Service nodes configuration
 nodes:

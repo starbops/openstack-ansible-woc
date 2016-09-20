@@ -9,3 +9,4 @@
 - include: cinder.yml
 - include: swift.yml
 - include: heat.yml
+- include: ceilometer.yml

@@ -1,0 +1,355 @@
+---
+# Install and configure controller node
+# Configure prerequisites
+- name: Install the MongoDB package
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - mongodb-server
+    - mongodb-clients
+    - python-pymongo
+- name: Edit the mongodb.conf
+  become: yes
+  lineinfile:
+    dest: /etc/mongodb.conf
+    line: "{{ item }}"
+    state: present
+  with_items:
+    - "bind_ip = {{ nodes.controller.management_ip_address }}"
+    - 'smallfiles = true'
+- name: Stop MongoDB service
+  become: yes
+  service:
+    name: mongodb
+    state: stopped
+- name: Remove the initial journal files
+  become: yes
+  shell: rm -rf /var/lib/mongodb/journal/prealloc.*
+- name: Start MongoDB service
+  become: yes
+  service:
+    name: mongodb
+    state: started
+- name: Create the ceilometer database
+  mongodb_user:
+    database: ceilometer
+    name: ceilometer
+    password: "{{ ceilometer_password }}"
+    roles: 'readWrite,dbAdmin'
+    state: present
+- name: List all OpenStack users
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user list
+  register: user_list
+- name: Create the ceilometer user
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      user create --password {{ ceilometer_password }} ceilometer
+  when: user_list.stdout.find('ceilometer') == -1
+- name: Add the admin role to the ceilometer user and service project
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role add --project service --user ceilometer admin
+  ignore_errors: yes
+- name: List all OpenStack services
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service list
+  register: service_list
+- name: Create the ceilometer service entity
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      service create --name ceilometer --description "OpenStack Telemetry service" metering
+  when: service_list.stdout.find('ceilometer') == -1
+- name: List all OpenStack endpoints
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint list
+  register: endpoint_list
+- name: Create the Telemetry service API endpoint
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      endpoint create \
+        --publicurl http://controller:8777 \
+        --internalurl http://controller:8777 \
+        --adminurl http://controller:8777 \
+        --region RegionOne \
+        metering
+  when: endpoint_list.stdout.find('ceilometer') == -1
+
+# Install and configure the Telemetry module components
+- name: Install the packages
+  become: yes
+  apt:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - ceilometer-api
+    - ceilometer-collector
+    - ceilometer-agent-central
+    - ceilometer-agent-notification
+    - ceilometer-alarm-evaluator
+    - ceilometer-alarm-notifier
+    - python-ceilometerclient
+- name: Generate a random value to use as the telemetry secret
+  command: openssl rand -hex 10
+  register: telemetry_secret
+- name: Remove keystone_authtoken section in /etc/ceilometer/ceilometer.conf
+  become: yes
+  ini_file:
+    dest: /etc/ceilometer/ceilometer.conf
+    section: keystone_authtoken
+    state: absent
+- name: Prepare ceilometer.conf
+  become: yes
+  ini_file:
+    dest: /etc/ceilometer/ceilometer.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: database, option: connection, value: "mongodb://ceilometer:{{ ceilometer_password }}@controller:27017/ceilometer" }
+    - { section: DEFAULT, option: rpc_backend, value: rabbit }
+    - { section: oslo_messaging_rabbit, option: rabbit_host, value: controller }
+    - { section: oslo_messaging_rabbit, option: rabbit_userid, value: openstack }
+    - { section: oslo_messaging_rabbit, option: rabbit_password, value: "{{ rabbit_openstack_password }}" }
+    - { section: DEFAULT, option: auth_strategy, value: keystone }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000/v2.0' }
+    - { section: keystone_authtoken, option: identity_uri, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: admin_tenant_name, value: service }
+    - { section: keystone_authtoken, option: admin_user, value: ceilometer }
+    - { section: keystone_authtoken, option: admin_password, value: "{{ ceilometer_password }}" }
+    - { section: service_credentials, option: os_auth_url, value: 'http://controller:5000/v2.0' }
+    - { section: service_credentials, option: os_username, value: ceilometer }
+    - { section: service_credentials, option: os_tenant_name, value: service }
+    - { section: service_credentials, option: os_password, value: "{{ ceilometer_password }}" }
+    - { section: service_credentials, option: os_endpoint_type, value: internalURL }
+    - { section: service_credentials, option: os_region_name, value: RegionOne }
+    - { section: publisher, option: telemetry_secret, value: "{{ telemetry_secret.stdout }}" }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+
+# Finalize installation
+- name:
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - ceilometer-agent-central
+    - ceilometer-agent-notification
+    - ceilometer-api
+    - ceilometer-collector
+    - ceilometer-alarm-evaluator
+    - ceilometer-alarm-notifier
+
+# Configure the Compute service
+# Install and configure the agent
+- name: Install the packages
+  become: yes
+  apt:
+    name: ceilometer-agent-compute
+    state: present
+- name: Remove keystone_authtoken section in /etc/ceilometer/ceilometer.conf
+  become: yes
+  ini_file:
+    dest: /etc/ceilometer/ceilometer.conf
+    section: keystone_authtoken
+    state: absent
+- name: Prepare ceilometer.conf
+  become: yes
+  ini_file:
+    dest: /etc/ceilometer/ceilometer.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: publisher, option: telemetry_secret, value: "{{ telemetry_secret.stdout }}" }
+    - { section: DEFAULT, option: rpc_backend, value: rabbit }
+    - { section: oslo_messaging_rabbit, option: rabbit_host, value: controller }
+    - { section: oslo_messaging_rabbit, option: rabbit_userid, value: openstack }
+    - { section: oslo_messaging_rabbit, option: rabbit_password, value: "{{ rabbit_openstack_password }}" }
+    - { section: keystone_authtoken, option: auth_uri, value: 'http://controller:5000/v2.0' }
+    - { section: keystone_authtoken, option: identity_uri, value: 'http://controller:35357' }
+    - { section: keystone_authtoken, option: admin_tenant_name, value: service }
+    - { section: keystone_authtoken, option: admin_user, value: ceilometer }
+    - { section: keystone_authtoken, option: admin_password, value: "{{ ceilometer_password }}" }
+    - { section: service_credentials, option: os_auth_url, value: 'http://controller:5000/v2.0' }
+    - { section: service_credentials, option: os_username, value: ceilometer }
+    - { section: service_credentials, option: os_tenant_name, value: service }
+    - { section: service_credentials, option: os_password, value: "{{ ceilometer_password }}" }
+    - { section: service_credentials, option: os_endpoint_type, value: internalURL }
+    - { section: service_credentials, option: os_region_name, value: RegionOne }
+    - { section: DEFAULT, option: verbose, value: 'True' }
+- name: Prepare nova.conf
+  become: yes
+  ini_file:
+    dest: /etc/nova/nova.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: instance_usage_audit, value: 'True' }
+    - { section: DEFAULT, option: instance_usage_audit_period, value: hour }
+    - { section: DEFAULT, option: notify_on_state_change, value: vm_and_task_state }
+    - { section: DEFAULT, option: notification_driver, value: messagingv2 }
+
+# Finalize installation
+- name: Restart the agent
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - ceilometer-agent-compute
+    - nova-compute
+
+# Configure the Image service
+# Configure prerequisites
+- name: Prepare glance-api.conf
+  become: yes
+  ini_file:
+    dest: /etc/glance/glance-api.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: notification_driver, value: messagingv2 }
+    - { section: DEFAULT, option: rpc_backend, value: rabbit }
+    - { section: DEFAULT, option: rabbit_host, value: controller }
+    - { section: DEFAULT, option: rabbit_userid, value: openstack }
+    - { section: DEFAULT, option: rabbit_password, value: "{{ rabbit_openstack_password }}" }
+- name: Prepare glance-registry.conf
+  become: yes
+  ini_file:
+    dest: /etc/glance/glance-registry.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: notification_driver, value: messagingv2 }
+    - { section: DEFAULT, option: rpc_backend, value: rabbit }
+    - { section: DEFAULT, option: rabbit_host, value: controller }
+    - { section: DEFAULT, option: rabbit_userid, value: openstack }
+    - { section: DEFAULT, option: rabbit_password, value: "{{ rabbit_openstack_password }}" }
+- name: Restart the Image services
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - glance-registry
+    - glance-api
+
+# Configure the Block Storage service
+# Configure prerequisites
+- name: Prepare cinder.conf
+  become: yes
+  ini_file:
+    dest: /etc/cinder/cinder.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: DEFAULT, option: control_exchange, value: cinder }
+    - { section: DEFAULT, option: notification_driver, value: messagingv2 }
+- name: Restart the Block Storage services
+  become: yes
+  service:
+    name: "{{ item }}"
+    state: restarted
+  with_items:
+    - cinder-api
+    - cinder-scheduler
+    - cinder-volume     # TODO: On storage nodes
+
+
+# Configure the Object Storage service
+# Configure prerequisites
+- name: List all OpenStack roles
+  environment:
+    OS_TOKEN: "{{ admin_tmp_token.stdout }}"
+    OS_URL: 'http://controller:35357/v2.0'
+  command: openstack role list
+  register: role_list
+- name: Create the ResellerAdmin role
+  environment:
+    OS_TOKEN: "{{ admin_tmp_token.stdout }}"
+    OS_URL: 'http://controller:35357/v2.0'
+  command: openstack role create ResellerAdmin
+  when: role_list.stdout.find('ResellerAdmin') == -1
+- name: Add the ResellerAdmin role to the ceilometer user and service project
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role add --project service --user ceilometer ResellerAdmin
+  ignore_errors: yes
+
+# Configure notifications
+- name: Prepare proxy-server.conf
+  become: yes
+  ini_file:
+    dest: /etc/swift/proxy-server.conf
+    section: "{{ item.section }}"
+    option: "{{ item.option }}"
+    value: "{{ item.value }}"
+    state: present
+  with_items:
+    - { section: 'filter:keystoneauth', option: operator_roles, value: 'admin,user,ResellerAdmin' }
+    - { section: 'pipeline:main', option: pipeline, value: 'catch_errors gatekeeper healthcheck proxy-logging cache container_sync bulk ratelimit authtoken keystoneauth container-quotas account-quotas slo dlo proxy-logging ceilometer proxy-server' }
+    - { section: 'filter:ceilometer', option: paste.filter_factory, value: 'ceilometermiddleware.swift:filter_factory' }
+    - { section: 'filter:ceilometer', option: control_exchange, value: swift }
+    - { section: 'filter:ceilometer', option: url, value: "rabbit://openstack:{{ rabbit_openstack_password }}@controller:5672/" }
+    - { section: 'filter:ceilometer', option: driver, value: messagingv2 }
+    - { section: 'filter:ceilometer', option: topic, value: notifications }
+    - { section: 'filter:ceilometer', option: log_level, value: WARN }
+- name: Add the swift system user to the ceilometer system group to permit access to the Telemetry configuration files by the Object Storage service
+  become: yes
+  user:
+    name: swift
+    groups: ceilometer
+    append: yes
+- name: Restart the Object Storage proxy service
+  become: yes
+  service:
+    name: swift-proxy
+    state: restarted
