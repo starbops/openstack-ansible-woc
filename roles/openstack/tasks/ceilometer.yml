@@ -40,6 +40,7 @@
     state: started
 - name: Create the ceilometer database
   mongodb_user:
+    login_host: controller
     database: ceilometer
     name: ceilometer
     password: "{{ ceilometer_password }}"
