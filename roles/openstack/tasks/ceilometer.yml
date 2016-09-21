@@ -10,6 +10,12 @@
     - mongodb-server
     - mongodb-clients
     - python-pymongo
+- name: Remove bind_ip option in mongodb.conf by default
+  become: yes
+  lineinfile:
+    dest: /etc/mongodb.conf
+    line: 'bind_ip = 127.0.0.1'
+    state: absent
 - name: Edit the mongodb.conf
   become: yes
   lineinfile:
