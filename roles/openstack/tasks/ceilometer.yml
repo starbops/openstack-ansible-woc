@@ -10,12 +10,6 @@
     - mongodb-server
     - mongodb-clients
     - python-pymongo
-- name: Remove bind_ip option in mongodb.conf by default
-  become: yes
-  lineinfile:
-    dest: /etc/mongodb.conf
-    line: 'bind_ip = 127.0.0.1'
-    state: absent
 - name: Edit the mongodb.conf
   become: yes
   lineinfile:
@@ -23,7 +17,7 @@
     line: "{{ item }}"
     state: present
   with_items:
-    - "bind_ip = {{ nodes.controller.management_ip_address }}"
+    - "bind_ip = 127.0.0.1,{{ nodes.controller.management_ip_address }}"
     - 'smallfiles = true'
 - name: Stop MongoDB service
   become: yes
@@ -40,7 +34,6 @@
     state: started
 - name: Create the ceilometer database
   mongodb_user:
-    login_host: controller
     database: ceilometer
     name: ceilometer
     password: "{{ ceilometer_password }}"
