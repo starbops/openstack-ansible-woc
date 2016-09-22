@@ -33,7 +33,7 @@
   service:
     name: mongodb
     state: started
-- name: Wait for MongoDB service up and runnign
+- name: Wait for MongoDB service up and running
   wait_for:
     host: 127.0.0.1
     port: 27017
@@ -168,7 +168,7 @@
     - { section: DEFAULT, option: verbose, value: 'True' }
 
 # Finalize installation
-- name:
+- name: Restart the Telemetry services
   become: yes
   service:
     name: "{{ item }}"
