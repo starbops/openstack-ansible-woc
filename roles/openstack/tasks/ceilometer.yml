@@ -33,6 +33,12 @@
   service:
     name: mongodb
     state: started
+- name: Wait for MongoDB service up and runnign
+  wait_for:
+    host: 127.0.0.1
+    port: 27017
+    delay: 5
+    state: started
 - name: Create the ceilometer database
   mongodb_user:
     database: ceilometer
