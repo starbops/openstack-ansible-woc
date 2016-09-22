@@ -349,7 +349,7 @@
   with_items:
     - { section: 'filter:keystoneauth', option: operator_roles, value: 'admin,user,ResellerAdmin' }
     - { section: 'pipeline:main', option: pipeline, value: 'catch_errors gatekeeper healthcheck proxy-logging cache container_sync bulk ratelimit authtoken keystoneauth container-quotas account-quotas slo dlo proxy-logging ceilometer proxy-server' }
-    - { section: 'filter:ceilometer', option: paste.filter_factory, value: 'ceilometermiddleware.swift:filter_factory' }
+    - { section: 'filter:ceilometer', option: use, value: 'egg:ceilometer#swift' }
     - { section: 'filter:ceilometer', option: control_exchange, value: swift }
     - { section: 'filter:ceilometer', option: url, value: "rabbit://openstack:{{ rabbit_openstack_password }}@controller:5672/" }
     - { section: 'filter:ceilometer', option: driver, value: messagingv2 }
