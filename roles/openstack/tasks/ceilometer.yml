@@ -310,16 +310,22 @@
 # Configure the Object Storage service
 # Configure prerequisites
 - name: List all OpenStack roles
-  environment:
-    OS_TOKEN: "{{ admin_tmp_token.stdout }}"
-    OS_URL: 'http://controller:35357/v2.0'
-  command: openstack role list
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role list
   register: role_list
 - name: Create the ResellerAdmin role
-  environment:
-    OS_TOKEN: "{{ admin_tmp_token.stdout }}"
-    OS_URL: 'http://controller:35357/v2.0'
-  command: openstack role create ResellerAdmin
+  command: >
+    openstack \
+      --os-auth-url http://controller:35357/v3 \
+      --os-project-domain-id default --os-user-domain-id default \
+      --os-project-name admin \
+      --os-username admin --os-password {{ admin_password }} \
+      role create ResellerAdmin
   when: role_list.stdout.find('ResellerAdmin') == -1
 - name: Add the ResellerAdmin role to the ceilometer user and service project
   command: >
