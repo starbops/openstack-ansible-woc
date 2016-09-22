@@ -14,11 +14,12 @@
   become: yes
   lineinfile:
     dest: /etc/mongodb.conf
-    line: "{{ item }}"
-    state: present
+    line: "{{ item.line }}"
+    state: "{{ item.state }}"
   with_items:
-    - "bind_ip = 127.0.0.1,{{ nodes.controller.management_ip_address }}"
-    - 'smallfiles = true'
+    - { line: 'bind_ip = 127.0.0.1', state: absent }
+    - { line: "bind_ip = 127.0.0.1,{{ nodes.controller.management_ip_address }}", state: present }
+    - { line: 'smallfiles = true', state: present }
 - name: Stop MongoDB service
   become: yes
   service:
