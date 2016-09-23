@@ -366,3 +366,9 @@
   service:
     name: swift-proxy
     state: restarted
+
+# XXX: ceilometerclient 1.0.13 incompatible with Keystone v3, use v2.0 instead
+- name: Copy the ceilometer-openrc.sh file
+  template:
+    src: ceilometer-openrc.sh.j2
+    dest: "{{ ansible_user_dir }}/ceilometer-openrc.sh"
