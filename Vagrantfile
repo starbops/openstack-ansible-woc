@@ -25,6 +25,7 @@ Vagrant.configure("2") do |config|
   end
 
   config.vm.provider "libvirt" do |domain|
+    domain.random_hostname = true
     domain.cpus = "8"
     domain.memory = "8192"
     domain.storage :file, size: "20G"
