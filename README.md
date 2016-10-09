@@ -21,6 +21,17 @@ Deployment Flavor
 Dependencies
 ------------
 
+Please refer to [official installation guide](http://docs.ansible.com/ansible/intro_installation.html) for installing the latest Ansible.
+
+For example, if you're using Ubuntu:
+
+~~~ sh
+$ sudo apt-get install software-properties-common
+$ sudo apt-add-repository ppa:ansible/ansible
+$ sudo apt-get update
+$ sudo apt-get install ansible
+~~~
+
 Python 3rd party package dependencies:
 
 * python-netaddr
