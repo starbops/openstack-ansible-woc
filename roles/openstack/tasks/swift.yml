@@ -155,23 +155,15 @@
   filesystem:
     fstype: xfs
     dev: /dev/{{ nodes.object.storage_device }}1
-- name: Create the mount point directory structure
-  become: yes
-  file:
-    path: /srv/node/{{ nodes.object.storage_device }}1
-    state: directory
-- name: Edit the fstab file
-  become: yes
-  lineinfile:
-    dest: /etc/fstab
-    line: /dev/{{ nodes.object.storage_device }}1 /srv/node/{{ nodes.object.storage_device }}1 xfs noatime,nodiratime,nobarrier,logbufs=8 0 2
-    state: present
 - name: Mount the devices
   become: yes
   mount:
     name: /srv/node/{{ nodes.object.storage_device }}1
     src: /dev/{{ nodes.object.storage_device }}1
     fstype: xfs
+    opts: noatime,nodiratime,nobarrier,logbufs=8
+    dump: 0
+    passno: 2
     state: mounted
 - name: Prepare rsyncd.conf
   become: yes
