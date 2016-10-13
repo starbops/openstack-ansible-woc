@@ -377,7 +377,7 @@
 # XXX: Hacking on restricted network issue
 - name: Remove existing IP address on {{ nodes.network.external_interface }}
   become: yes
-  shell: ip addr del {{ networking.external.address }}/{{ networking.external.netmask }} dev {{ nodes.network.external_interface }}
+  shell: ip addr flush dev {{ nodes.network.external_interface }}
   when: ansible_{{ nodes.network.external_interface }}.ipv4 is defined
 - name: Add the previous-removed IP address back onto br-ex
   become: yes
