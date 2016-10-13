@@ -1,6 +1,7 @@
 ---
 all_in_one: True
 mysql_root_password: password
+mysql_max_connections: 1024
 nodes:
   controller:
     management_interface: "{{ ansible_default_ipv4.interface }}"
