@@ -25,6 +25,8 @@ networking:
   management:
     network: "{{ '{}/{}'.format(ansible_default_ipv4.network, ansible_default_ipv4.netmask) | ipaddr('net') }}"
   external:
+    address: '192.168.33.10'
+    netmask: '255.255.255.0'
     network: '192.168.33.0/24'
     allocation_pool:
       start: '192.168.33.241'
