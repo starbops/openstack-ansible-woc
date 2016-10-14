@@ -374,6 +374,16 @@
     port: "{{ nodes.network.external_interface }}"
     state: present
 
+# XXX: Hacking on restricted network issue
+- name: Remove existing IP address on {{ nodes.network.external_interface }}
+  become: yes
+  shell: >
+    ip addr flush dev {{ nodes.network.external_interface }}; \
+    ip addr add {{ networking.external.address }}/{{ networking.external.netmask }} dev br-ex; \
+    ip route add default via {{ networking.external.gateway }} dev br-ex
+  when: ansible_{{ nodes.network.external_interface }}.ipv4 is defined and ansible_br_ex.ipv4 is undefined
+  ignore_errors: yes
+
 # Finalize the installation
 - name: Restart the Networking services
   become: yes
