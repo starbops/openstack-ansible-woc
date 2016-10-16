@@ -376,7 +376,7 @@
 #    state: present
 - name: External network settings on br-ex and {{ nodes.network.external_interface }}
   become: yes
-  script: setovs.sh {{ nodes.network.external_interface }} {{ networking.external.address}}/{{ networking.external.netmask }} {{ networking.external.gateway }}
+  script: setovs.sh {{ nodes.network.external_interface }} {{ networking.external.address}} {{ networking.external.netmask }} {{ networking.external.gateway }}
 - name: Include external network settings
   become: yes
   lineinfile:
