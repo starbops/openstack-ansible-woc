@@ -1,0 +1,15 @@
+allow-br-ex {{ nodes.network.external_interface }}
+iface {{ nodes.network.external_interface }} inet manual
+        ovs_bridge br-ex
+        ovs_type OVSPort
+
+auto br-ex
+allow-ovs br-ex
+iface br-ex inet static
+        ovs_type OVSBridge
+        ovs_ports {{ nodes.network.external_interface }}
+        address {{ networking.external.address }}
+        netmask {{ networking.external.netmask }}
+        {% if ansible_default_ipv4.interface == 'br-ex' %}
+        gateway {{ networking.external.gateway }}
+        {% endif %}
