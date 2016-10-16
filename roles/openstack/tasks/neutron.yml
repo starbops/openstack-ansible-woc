@@ -367,23 +367,34 @@
   openvswitch_bridge:
     bridge: br-ex
     state: present
-- name: Add the interface to the external bridge that connects to the physical external network
-  become: yes
-  openvswitch_port:
-    bridge: br-ex
-    port: "{{ nodes.network.external_interface }}"
-    state: present
-
 # XXX: Hacking on restricted network issue
-- name: Remove existing IP address on {{ nodes.network.external_interface }}
+#- name: Add the interface to the external bridge that connects to the physical external network
+#  become: yes
+#  openvswitch_port:
+#    bridge: br-ex
+#    port: "{{ nodes.network.external_interface }}"
+#    state: present
+- name: External network settings on br-ex and {{ nodes.network.external_interface }}
   become: yes
-  shell: >
-    ip addr flush dev {{ nodes.network.external_interface }}; \
-    ip addr add {{ networking.external.address }}/{{ networking.external.netmask }} dev br-ex; \
-    ip link set up br-ex; \
-    ip route add default via {{ networking.external.gateway }} dev br-ex
-  when: ansible_{{ nodes.network.external_interface }}.ipv4 is defined and ansible_br_ex.ipv4 is undefined
-  ignore_errors: yes
+  script: setovs.sh {{ nodes.network.external_interface }} {{ networking.external.address}} {{ networking.external.netmask }} {{ networking.external.gateway }}
+- name: Include external network settings
+  become: yes
+  lineinfile:
+    dest: /etc/network/interfaces
+    line: source /etc/network/interfaces.d/*.cfg
+    state: present
+- name: Persist network settings
+  become: yes
+  template:
+    src: br-ex.cfg.j2
+    dest: /etc/network/interfaces.d/br-ex.cfg
+- name: Set nameserver in resolvconf
+  become: yes
+  lineinfile:
+    dest: /etc/resolvconf/resolv.conf.d/base
+    line: 'nameserver 8.8.8.8'
+    state: present
+    create: yes
 
 # Finalize the installation
 - name: Restart the Networking services
